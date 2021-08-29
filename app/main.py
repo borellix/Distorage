@@ -149,7 +149,7 @@ def _file_upload():
     file = request.files.get('file')
     if file is None:
         return abort(400, {"message": "Bad Request"})
-    path = 'temporary/' + str(uuid4()) + '.' + file.filename.split('.')[-1]
+    path = os.path.join(os.getcwd(), 'temporary', str(uuid4()) + '.' + file.filename.split('.')[-1])
     file.save(path)
 
     if os.stat(path).st_size / (1024 * 1024) > 8:
@@ -207,7 +207,7 @@ def _file_edit():
     if file_key is None or file is None:
         return abort(400, {"message": "Bad Request"})
     channel_id, message_id = file_key.split(':')
-    path = 'temporary/' + str(uuid4()) + '.' + file.filename.split('.')[-1]
+    path = os.path.join(os.getcwd(), 'temporary', str(uuid4()) + '.' + file.filename.split('.')[-1])
     file.save(path)
 
     if os.stat(path).st_size / (1024 * 1024) > 8:
@@ -261,4 +261,6 @@ def service_unavailable(_e):
 
 
 if __name__ == '__main__':
+    print(os.getcwd())
+    print(os.path.join(os.getcwd(), 'temporary'))
     app.run('127.0.0.1', port=80, debug=True)
