@@ -261,4 +261,6 @@ def service_unavailable(_e):
 
 
 if __name__ == '__main__':
+    print(os.getcwd())
+    print(os.path.join(os.getcwd(), 'temporary'))
     app.run('127.0.0.1', port=80, debug=True)
