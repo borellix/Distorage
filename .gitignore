@@ -1,2 +1,4 @@
-launch.py
-temporary/*
+env/
+venv/
+tmp/
+.idea/
