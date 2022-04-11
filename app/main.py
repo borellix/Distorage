@@ -15,9 +15,9 @@ class Discord:
         self.AUTHORIZATION = f'Bot {bot_token}'
 
     def get_available_channel_id(self) -> str or dict:
-        guilds_ids = eval(os.environ['GUILDS_IDS'])  # eval() for convert string to list type
-        for guild_id in guilds_ids:
-            channels = self.get_channels(guild_id)
+        guilds_ids = eval(os.environ['guilds_ids'])  # eval() for convert string to list type
+        for guilds_ids in guilds_ids:
+            channels = self.get_channels(guilds_ids)
             if len(channels) < 500:
                 for channel in channels:
                     try:
@@ -27,25 +27,26 @@ class Discord:
                                 return channel_id
                     except TypeError:
                         return abort(401)
-                return self.create_text_channel(name=str(self.get_channel_number(guild_id=guild_id)), guild_id=guild_id)
+                return self.create_text_channel(name=str(self.get_channel_number(guilds_ids=guilds_ids)),
+                                                guilds_ids=guilds_ids)
         return abort(503)
 
-    def create_text_channel(self, name: str, guild_id: str, authorization: [str, None] = None) -> str:
+    def create_text_channel(self, name: str, guilds_ids: list[str] = None, authorization: [str, None] = None) -> str:
         return requests.post(
-            url=API_BASE_URL + f"/guilds/{guild_id}/channels",
+            url=API_BASE_URL + f"/guilds/{guilds_ids}/channels",
             headers={'Authorization': authorization if authorization is not None else self.AUTHORIZATION},
             json={'name': name, 'type': 0}
         ).json()['id']
 
-    def get_channel_number(self, guild_id: str) -> int:
+    def get_channel_number(self, guilds_ids: list[str] = None) -> int:
         try:
-            return max([int(channel['name']) for channel in self.get_channels(guild_id=guild_id)]) + 1
+            return max([int(channel['name']) for channel in self.get_channels(guilds_ids=guilds_ids)]) + 1
         except ValueError:
             return 1
 
-    def get_channels(self, guild_id: str) -> dict:
+    def get_channels(self, guilds_ids: list[str] = None) -> dict:
         return requests.get(
-            url=API_BASE_URL + f'/guilds/{guild_id}/channels',
+            url=API_BASE_URL + f'/guilds/{guilds_ids}/channels',
             headers={
                 'Authorization': self.AUTHORIZATION
             }
@@ -113,9 +114,9 @@ class Discord:
 
     def get_channels_ids(self, guilds_ids, authorization: [str, None] = None) -> list:
         channels_ids = []
-        for guild_id in guilds_ids:
+        for guilds_ids in guilds_ids:
             channels = requests.get(
-                url=API_BASE_URL + f"/guilds/{guild_id}/channels",
+                url=API_BASE_URL + f"/guilds/{guilds_ids}/channels",
                 headers={"Authorization": authorization if authorization is not None else self.AUTHORIZATION}
             ).json()
             channels_ids += [channel['id'] for channel in channels]
@@ -129,11 +130,29 @@ class Discord:
 
 
 class Server:
-    def __init__(self, authorization: str, category_id: str = None, prefix: str = "") -> None:
+    API_BASE_URL = 'https://discord.com/api/v9'
+
+    def __init__(self,
+                 authorization: str,
+                 category_id: str = None,
+                 prefix: str = "",
+                 guilds_ids: list[str] or str = None
+                 ) -> None:
         self._AUTHORIZATION = None
         self.AUTHORIZATION = authorization
         self.CATEGORY_ID = str(category_id)
         self.PREFIX = prefix
+        if isinstance(guilds_ids, int):
+            guilds_ids = str(guilds_ids)
+        if isinstance(guilds_ids, str):
+            guilds_ids = [guilds_ids]
+
+        self.GUILDS_IDS = guilds_ids
+        self._SERVER_TYPE = None
+
+    @property
+    def SERVER_TYPE(self):
+        return self._SERVER_TYPE
 
     @property
     def AUTHORIZATION(self) -> str:
@@ -143,45 +162,78 @@ class Server:
     def AUTHORIZATION(self, authorization) -> None:
         self._AUTHORIZATION = f'Bot {authorization}'
 
-    def get_channels(self, guilds_ids: str or list[str]) -> list[dict] or any:
+    def get_guilds_ids(self, guilds_ids: list[str] or str = None) -> list[str]:
+        if isinstance(guilds_ids, str):
+            return [guilds_ids]
+        if isinstance(guilds_ids, int):
+            return [str(guilds_ids)]
+        if not guilds_ids:
+            if self.GUILDS_IDS:
+                return self.GUILDS_IDS
+            else:
+                raise ValueError("No guild ID is specified")
+
+        return guilds_ids
+
+    def get_channels(self, guilds_ids: list[str] or str = None) -> list[dict] or any:
         """
         Get channels of guild that begin with the prefix
         :param guilds_ids: The guild id or list of guild ids
         :return: The channels of the guild
         """
-        if isinstance(guilds_ids, list):
-            return [
-                channel for channel in (
-                    self.get_channels(guilds_ids=guild_id) for guild_id in guilds_ids
-                )
-            ]
-        if isinstance(guilds_ids, str):
-            print(guilds_ids)
-            # Return the channels of the guild if the name of the channel begins with the prefix
-            return [
-                channel for channel in (
+        guilds_ids = self.get_guilds_ids(guilds_ids)
+
+        return [
+            channel for guild_channel in [
+                (
                     requests.get(
-                        url=API_BASE_URL + f'/guilds/{guilds_ids}/channels',
+                        url=self.API_BASE_URL + f'/guilds/{guild_id}/channels',
                         headers={'Authorization': self.AUTHORIZATION},
                     ).json()
-                ) if channel['name'].startswith(self.PREFIX)
-            ]
+                ) for guild_id in guilds_ids
+            ] for channel in guild_channel if channel['name'].startswith(self.PREFIX)
+        ]  # Return the channels of the guilds that begin with the prefix
 
-    def get_channels_ids(self, guild_id: str) -> list[str]:
+    def get_channels_ids(self, guilds_ids: list[str] = None) -> list[str]:
         """
         Get the ids of the channels
-        :param guild_id: The guild id
+        :param guilds_ids: The guild id
         :return: The ids of the channels
         """
-        return [channel['id'] for channel in self.get_channels(guilds_ids=guild_id)]
+        guilds_ids = self.get_guilds_ids(guilds_ids)
+        return [channel['id'] for channel in self.get_channels(guilds_ids=guilds_ids)]
 
-    def get_available_channel_id(self, guild_id: str) -> str:
+    def get_available_guild_id(self, guilds_ids: list[str] = None) -> str:
+        """
+        Get the id of the first guild that has less than 500 channels for a common server and 400 channels for custom
+        server
+        :param guilds_ids: The list of guild ids
+        :return: The id of the first guild that has less than 500 channels for a common server and 400 channels for
+        """
+        match self.SERVER_TYPE:
+            case "COMMON":
+                guilds_ids = self.get_guilds_ids(guilds_ids)
+                return [
+                    guild_id for guild_id in guilds_ids
+                    if len(self.get_channels(guild_id)) < int(os.getenv("MAX_CHANNELS_COMMON_SERVER"))
+                ][0]
+            case "CUSTOM":
+                guilds_ids = self.get_guilds_ids(guilds_ids)
+                return [
+                    guild_id for guild_id in guilds_ids
+                    if len(self.get_channels(guild_id)) < int(os.getenv('MAX_CHANNELS_CUSTOM_SERVER'))
+                ][0]
+            case _:
+                raise ValueError("The server type is not specified")
+
+    def get_available_channel_id(self, guilds_ids: list[str] or str = None) -> str:
         """
         Get available channel id
-        :param guild_id: The guild id
+        :param guilds_ids: The guilds ids or the guild id where it will be found an available channel
         :return: The available channel id
         """
-        channels = self.get_channels(guilds_ids=guild_id)  # Get channels that begin with the prefix
+        guilds_ids = self.get_guilds_ids(guilds_ids)
+        channels = self.get_channels(guilds_ids=guilds_ids)  # Get channels that begin with the prefix
 
         # Keep only the channels that are a text channel
         channels = [channel for channel in channels if channel['type'] == 0]
@@ -189,16 +241,16 @@ class Server:
             channels = [channel for channel in channels if channel['parent_id'] == self.CATEGORY_ID]
         channels = [channel for channel in channels if len(self.get_messages(channel_id=channel['id'])) < 100]
 
-
         # If there is no channel that hasn't got 100 messages in it, create a new one
         if not channels:
+            available_guild_id = self.get_available_guild_id(guilds_ids=guilds_ids)
             return self.create_text_channel(
-                guild_id=guild_id,
-                name=self.PREFIX + str(self.get_channel_number(guild_id=guild_id))
+                guild_id=available_guild_id,
+                name=self.PREFIX + str(self.get_channel_number(guild_id=available_guild_id))
             )['id']
         return channels[0]['id']
 
-    def get_channel_number(self, guild_id: str) -> int:
+    def get_channel_number(self, guild_id: str = None) -> int:
         """
         Get the numbers of channels that begin with the prefix
         :param guild_id: The guild id
@@ -210,11 +262,11 @@ class Server:
         except ValueError:
             return 1
 
-    def create_text_channel(self, guild_id: str, name: str) -> dict:
+    def create_text_channel(self, name: str, guild_id: str) -> dict:
         """
         Create a text channel
-        :param guild_id: The guild id
         :param name: The name of the channel
+        :param guild_id: The guild id
         :return: The created channel
         """
         json_data = {
@@ -225,7 +277,7 @@ class Server:
             json_data['parent_id'] = self.CATEGORY_ID
 
         r = requests.post(
-            url=API_BASE_URL + f'/guilds/{guild_id}/channels',
+            url=self.API_BASE_URL + f'/guilds/{guild_id}/channels',
             headers={'Authorization': self.AUTHORIZATION},
             json=json_data
         ).json()  # Create a text channel with the name in the guild
@@ -238,44 +290,42 @@ class Server:
         :return: The messages of the channel
         """
         return requests.get(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages',
+            url=self.API_BASE_URL + f'/channels/{channel_id}/messages',
             headers={'Authorization': self.AUTHORIZATION}
         ).json()  # Get messages of the channel
 
-    def get_message(self, channel_id: str, message_id: str, *args, **kwargs) -> dict:
+    def get_message(self, channel_id: str, message_id: str) -> dict:
         """
         Get a message
         :param channel_id: The channel id
         :param message_id: The message id
-        :param args: Arguments
-        :param kwargs: Keyword arguments
         :return: The message
         """
         return requests.get(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
+            url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
             headers={'Authorization': self.AUTHORIZATION}
         ).json()  # Get message
 
-    def file_upload(self, path: str, guild_id: str, channel_id: str = None) -> dict:
+    def file_upload(self, path: str, guilds_ids: list[str] = None, channel_id: str = None) -> dict:
         """"
         Upload a file
         :param path: The path of the file to upload
-        :param guild_id: The guild id where the file will be uploaded
+        :param guilds_ids: The guild id where the file will be uploaded
         :param channel_id: The channel id where the file will be uploaded
         :return: The uploaded file
         """
         file = open(path, 'rb')  # Open the file to upload
         if channel_id is None:
             # Get available channel id if channel_id is None
-            channel_id = self.get_available_channel_id(guild_id=guild_id)
+            channel_id = self.get_available_channel_id(guilds_ids=guilds_ids)
         response = requests.post(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages',
+            url=self.API_BASE_URL + f'/channels/{channel_id}/messages',
             headers={'Authorization': self.AUTHORIZATION},
             json={'content': ''},
             files={'file': file}
         ).json()  # Upload the file
         file.close()  # Close the file
-        # os.remove(path)  TODO: Delete the file decomment this line if you want to delete the file
+        # os.remove(path)  TODO: Delete the file uncomment this line if you want to delete the file
         return {'file_key': '{}:{}'.format(channel_id, response['id'])}  # Return the file key
 
     def file_edit(self, file_key: str, path: str) -> dict:
@@ -288,12 +338,12 @@ class Server:
         channel_id, message_id = file_key.split(":")
         file = open(path, 'rb')
         response = requests.patch(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
+            url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
             headers={'Authorization': self.AUTHORIZATION},
             files={'file': file}
         ).json()
         file.close()
-        # os.remove(path) TODO: Delete the file decomment this line if you want to delete the file
+        # os.remove(path) TODO: Delete the file uncomment this line if you want to delete the file
         return {'file_key': '{}:{}'.format(channel_id, response['id'])}
 
     def file_delete(self, file_key: str) -> None:
@@ -304,7 +354,7 @@ class Server:
         """
         channel_id, message_id = file_key.split(":")  # Get the channel id and the message id
         requests.delete(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
+            url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
             headers={'Authorization': self.AUTHORIZATION}
         ).json()  # Delete the file message from the channel
 
