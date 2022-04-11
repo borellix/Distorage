@@ -4,4 +4,4 @@ tmp/
 .idea/
 .env
 **/__pycache__/
-test.py
+tests_upload_files/
