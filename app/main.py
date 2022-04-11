@@ -132,7 +132,7 @@ class Server:
     def __init__(self, authorization: str, category_id: str = None, prefix: str = "") -> None:
         self._AUTHORIZATION = None
         self.AUTHORIZATION = authorization
-        self.CATEGORY_ID = category_id
+        self.CATEGORY_ID = str(category_id)
         self.PREFIX = prefix
 
     @property
@@ -149,7 +149,6 @@ class Server:
         :param guilds_ids: The guild id or list of guild ids
         :return: The channels of the guild
         """
-        print(f'Getting channels of guild {guilds_ids}. Authorisation: {self.AUTHORIZATION}')
         if isinstance(guilds_ids, list):
             return [
                 channel for channel in (
@@ -157,10 +156,16 @@ class Server:
                 )
             ]
         if isinstance(guilds_ids, str):
-            return requests.get(
-                url=API_BASE_URL + f'/guilds/{guilds_ids}/channels',
-                headers={'Authorization': self.AUTHORIZATION},
-            ).json()
+            print(guilds_ids)
+            # Return the channels of the guild if the name of the channel begins with the prefix
+            return [
+                channel for channel in (
+                    requests.get(
+                        url=API_BASE_URL + f'/guilds/{guilds_ids}/channels',
+                        headers={'Authorization': self.AUTHORIZATION},
+                    ).json()
+                ) if channel['name'].startswith(self.PREFIX)
+            ]
 
     def get_channels_ids(self, guild_id: str) -> list[str]:
         """
@@ -170,16 +175,21 @@ class Server:
         """
         return [channel['id'] for channel in self.get_channels(guilds_ids=guild_id)]
 
-    def get_available_channel_id(self, guild_id: str, *args, **kwargs) -> str:
+    def get_available_channel_id(self, guild_id: str) -> str:
         """
         Get available channel id
         :param guild_id: The guild id
         :return: The available channel id
         """
         channels = self.get_channels(guilds_ids=guild_id)  # Get channels that begin with the prefix
-        # Get channels that haven't got 100 messages in it
-        # (use len(self.get_messages) to get the number of messages)
+
+        # Keep only the channels that are a text channel
+        channels = [channel for channel in channels if channel['type'] == 0]
+        if self.CATEGORY_ID:
+            channels = [channel for channel in channels if channel['parent_id'] == self.CATEGORY_ID]
         channels = [channel for channel in channels if len(self.get_messages(channel_id=channel['id'])) < 100]
+
+
         # If there is no channel that hasn't got 100 messages in it, create a new one
         if not channels:
             return self.create_text_channel(
@@ -214,11 +224,12 @@ class Server:
         if self.CATEGORY_ID:
             json_data['parent_id'] = self.CATEGORY_ID
 
-        return requests.post(
+        r = requests.post(
             url=API_BASE_URL + f'/guilds/{guild_id}/channels',
             headers={'Authorization': self.AUTHORIZATION},
             json=json_data
         ).json()  # Create a text channel with the name in the guild
+        return r
 
     def get_messages(self, channel_id: str) -> dict:
         """
@@ -256,7 +267,7 @@ class Server:
         file = open(path, 'rb')  # Open the file to upload
         if channel_id is None:
             # Get available channel id if channel_id is None
-            channel_id = self.get_available_channel_id(guild_id=guild_id, prefix=self.PREFIX)
+            channel_id = self.get_available_channel_id(guild_id=guild_id)
         response = requests.post(
             url=API_BASE_URL + f'/channels/{channel_id}/messages',
             headers={'Authorization': self.AUTHORIZATION},
@@ -264,8 +275,7 @@ class Server:
             files={'file': file}
         ).json()  # Upload the file
         file.close()  # Close the file
-        os.remove(path)  # Delete the file
-        print(response)
+        # os.remove(path)  TODO: Delete the file decomment this line if you want to delete the file
         return {'file_key': '{}:{}'.format(channel_id, response['id'])}  # Return the file key
 
     def file_edit(self, file_key: str, path: str) -> dict:
@@ -283,7 +293,7 @@ class Server:
             files={'file': file}
         ).json()
         file.close()
-        os.remove(path)
+        # os.remove(path) TODO: Delete the file decomment this line if you want to delete the file
         return {'file_key': '{}:{}'.format(channel_id, response['id'])}
 
     def file_delete(self, file_key: str) -> None:
