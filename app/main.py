@@ -306,7 +306,7 @@ class Server:
             headers={'Authorization': self.AUTHORIZATION}
         ).json()  # Get message
 
-    def file_upload(self, path: str, guilds_ids: list[str] = None, channel_id: str = None) -> dict:
+    def file_upload(self, path: str, guilds_ids: list[str] = None, channel_id: str = None) -> dict[str, str]:
         """"
         Upload a file
         :param path: The path of the file to upload
@@ -328,7 +328,7 @@ class Server:
         # os.remove(path)  TODO: Delete the file uncomment this line if you want to delete the file
         return {'file_key': '{}:{}'.format(channel_id, response['id'])}  # Return the file key
 
-    def file_edit(self, file_key: str, path: str) -> dict:
+    def file_edit(self, file_key: str, path: str) -> dict[str, str]:
         """
         Edit a file
         :param file_key: The file key of the file to edit
@@ -357,6 +357,25 @@ class Server:
             url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
             headers={'Authorization': self.AUTHORIZATION}
         ).json()  # Delete the file message from the channel
+
+    def get_boosts_level(self, guild_id: str) -> int:
+        """
+        Get the boosts level of a guild
+        :param guild_id: The guild id
+        :return: The boosts level
+        """
+        return requests.get(
+            url=self.API_BASE_URL + f'/guilds/{guild_id}',
+            headers={'Authorization': self.AUTHORIZATION}
+        ).json()['premium_tier']  # Get the boosts level of the guild
+
+    def get_boosts_levels(self, guilds_ids: list[str] = None) -> dict[str, int]:
+        """
+        Return premium_level of the guild if that is give else of self.GUILDS_IDS order by id
+        :param guilds_ids: The guilds ids
+        :return: The boosts level of the guilds
+        """
+        return {guild_id: self.get_boosts_level(guild_id) for guild_id in guilds_ids or self.GUILDS_IDS}
 
 
 discord = Discord(BOT_TOKEN)
