@@ -88,7 +88,6 @@ class Discord:
         )
         return {"file_key": f"{channel_id}:{message_id}"}
 
-
     def edit_file(self, channel_id: str, message_id: str, path: str, authorization: [str, None] = None) -> str or dict:
         file = open(path, mode='rb')
         response = requests.patch(
@@ -127,6 +126,177 @@ class Discord:
             url=API_BASE_URL + f"/channels/{channel_id}/messages/{message_id}",
             headers={"Authorization": authorization if authorization is not None else self.AUTHORIZATION}
         )
+
+
+class Server:
+    def __init__(self, authorization: str, category_id: str = None, prefix: str = "") -> None:
+        self._AUTHORIZATION = None
+        self.AUTHORIZATION = authorization
+        self.CATEGORY_ID = category_id
+        self.PREFIX = prefix
+
+    @property
+    def AUTHORIZATION(self) -> str:
+        return self._AUTHORIZATION
+
+    @AUTHORIZATION.setter
+    def AUTHORIZATION(self, authorization) -> None:
+        self._AUTHORIZATION = f'Bot {authorization}'
+
+    def get_channels(self, guilds_ids: str or list[str]) -> list[dict] or any:
+        """
+        Get channels of guild that begin with the prefix
+        :param guilds_ids: The guild id or list of guild ids
+        :return: The channels of the guild
+        """
+        print(f'Getting channels of guild {guilds_ids}. Authorisation: {self.AUTHORIZATION}')
+        if isinstance(guilds_ids, list):
+            return [
+                channel for channel in (
+                    self.get_channels(guilds_ids=guild_id) for guild_id in guilds_ids
+                )
+            ]
+        if isinstance(guilds_ids, str):
+            return requests.get(
+                url=API_BASE_URL + f'/guilds/{guilds_ids}/channels',
+                headers={'Authorization': self.AUTHORIZATION},
+            ).json()
+
+    def get_channels_ids(self, guild_id: str) -> list[str]:
+        """
+        Get the ids of the channels
+        :param guild_id: The guild id
+        :return: The ids of the channels
+        """
+        return [channel['id'] for channel in self.get_channels(guilds_ids=guild_id)]
+
+    def get_available_channel_id(self, guild_id: str, *args, **kwargs) -> str:
+        """
+        Get available channel id
+        :param guild_id: The guild id
+        :return: The available channel id
+        """
+        channels = self.get_channels(guilds_ids=guild_id)  # Get channels that begin with the prefix
+        # Get channels that haven't got 100 messages in it
+        # (use len(self.get_messages) to get the number of messages)
+        channels = [channel for channel in channels if len(self.get_messages(channel_id=channel['id'])) < 100]
+        # If there is no channel that hasn't got 100 messages in it, create a new one
+        if not channels:
+            return self.create_text_channel(
+                guild_id=guild_id,
+                name=self.PREFIX + str(self.get_channel_number(guild_id=guild_id))
+            )['id']
+        return channels[0]['id']
+
+    def get_channel_number(self, guild_id: str) -> int:
+        """
+        Get the numbers of channels that begin with the prefix
+        :param guild_id: The guild id
+        :return: The numbers of channels begin with the prefix
+        """
+        try:
+            channels = self.get_channels(guilds_ids=guild_id)  # Get channels that begin with the prefix
+            return len(channels) + 1  # Return the number of channels that begin with the prefix + 1
+        except ValueError:
+            return 1
+
+    def create_text_channel(self, guild_id: str, name: str) -> dict:
+        """
+        Create a text channel
+        :param guild_id: The guild id
+        :param name: The name of the channel
+        :return: The created channel
+        """
+        json_data = {
+            'name': name,
+            'type': 0,  # 0 = text
+        }
+        if self.CATEGORY_ID:
+            json_data['parent_id'] = self.CATEGORY_ID
+
+        return requests.post(
+            url=API_BASE_URL + f'/guilds/{guild_id}/channels',
+            headers={'Authorization': self.AUTHORIZATION},
+            json=json_data
+        ).json()  # Create a text channel with the name in the guild
+
+    def get_messages(self, channel_id: str) -> dict:
+        """
+        Get messages of a channel
+        :param channel_id: The channel id
+        :return: The messages of the channel
+        """
+        return requests.get(
+            url=API_BASE_URL + f'/channels/{channel_id}/messages',
+            headers={'Authorization': self.AUTHORIZATION}
+        ).json()  # Get messages of the channel
+
+    def get_message(self, channel_id: str, message_id: str, *args, **kwargs) -> dict:
+        """
+        Get a message
+        :param channel_id: The channel id
+        :param message_id: The message id
+        :param args: Arguments
+        :param kwargs: Keyword arguments
+        :return: The message
+        """
+        return requests.get(
+            url=API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
+            headers={'Authorization': self.AUTHORIZATION}
+        ).json()  # Get message
+
+    def file_upload(self, path: str, guild_id: str, channel_id: str = None) -> dict:
+        """"
+        Upload a file
+        :param path: The path of the file to upload
+        :param guild_id: The guild id where the file will be uploaded
+        :param channel_id: The channel id where the file will be uploaded
+        :return: The uploaded file
+        """
+        file = open(path, 'rb')  # Open the file to upload
+        if channel_id is None:
+            # Get available channel id if channel_id is None
+            channel_id = self.get_available_channel_id(guild_id=guild_id, prefix=self.PREFIX)
+        response = requests.post(
+            url=API_BASE_URL + f'/channels/{channel_id}/messages',
+            headers={'Authorization': self.AUTHORIZATION},
+            json={'content': ''},
+            files={'file': file}
+        ).json()  # Upload the file
+        file.close()  # Close the file
+        os.remove(path)  # Delete the file
+        print(response)
+        return {'file_key': '{}:{}'.format(channel_id, response['id'])}  # Return the file key
+
+    def file_edit(self, file_key: str, path: str) -> dict:
+        """
+        Edit a file
+        :param file_key: The file key of the file to edit
+        :param path: The path of the file to edit
+        :return: The edited file
+        """
+        channel_id, message_id = file_key.split(":")
+        file = open(path, 'rb')
+        response = requests.patch(
+            url=API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
+            headers={'Authorization': self.AUTHORIZATION},
+            files={'file': file}
+        ).json()
+        file.close()
+        os.remove(path)
+        return {'file_key': '{}:{}'.format(channel_id, response['id'])}
+
+    def file_delete(self, file_key: str) -> None:
+        """
+        Delete a file
+        :param file_key: The file key of the file to delete
+        :return: None
+        """
+        channel_id, message_id = file_key.split(":")  # Get the channel id and the message id
+        requests.delete(
+            url=API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
+            headers={'Authorization': self.AUTHORIZATION}
+        ).json()  # Delete the file message from the channel
 
 
 discord = Discord(BOT_TOKEN)
