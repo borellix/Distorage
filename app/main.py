@@ -481,33 +481,37 @@ def _file_upload() -> dict[str, str]:
 
 @app.route('/file/download', methods=['POST'])
 def _file_download():
+    """
+    Download a file
+    :return: The discord url file or an error message
+    """
     file_key = request.form.get('file_key')
     if file_key is None:
         return abort(400, {"message": "Bad Request"})
     channel_id, message_id = file_key.split(':')
-    bot_token = request.args.get('bot_token')
+    authorization = request.args.get('bot_token')
 
-    if bot_token is None:  # Common server
-        response: dict = discord.get_message(channel_id=channel_id, message_id=message_id)
+    if authorization:  # Custom server
+        custom_server = CustomServer(authorization=authorization)
+        response: dict = custom_server.get_message(channel_id=channel_id, message_id=message_id)
         if response.get('code') == 50001:
             return abort(401)
         try:
-            url = response['attachments'][0]['url']
-            return url
-        except (KeyError, IndexError):
-            if channel_id in discord.get_channels_ids(discord.get_bot_guilds_id()):
-                return abort(404, {"message": "File Not Found"})
-            else:
-                return abort(401)
-    else:  # Custom Server
-        response: dict = discord.get_message(channel_id=channel_id, message_id=message_id, authorization=bot_token)
-        if response.get('code') == 50001:
-            return abort(401)
-        try:
-            url = response['attachments'][0]['url']
-            return url
+            return response['attachments'][0]['url']
         except (KeyError, IndexError):
             return abort(404, {"message": "File Not Found"})
+
+    else:  # Common Server
+        response: dict = common_server.get_message(channel_id=channel_id, message_id=message_id)
+        if response.get('code') == 50001:
+            return abort(401)
+        try:
+            return response['attachments'][0]['url']
+        except (KeyError, IndexError):
+            if channel_id in common_server.get_channels_ids(common_server.get_guilds_ids()):
+                return abort(404, {"message": "File Not Found"})
+            else:
+                return abort(401, )
 
 
 @app.route('/file/edit', methods=['POST'])
