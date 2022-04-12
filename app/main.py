@@ -210,21 +210,20 @@ class Server:
         :param guilds_ids: The list of guild ids
         :return: The id of the first guild that has less than 500 channels for a common server and 400 channels for
         """
-        match self.SERVER_TYPE:
-            case "COMMON":
-                guilds_ids = self.get_guilds_ids(guilds_ids)
-                return [
-                    guild_id for guild_id in guilds_ids
-                    if len(self.get_channels(guild_id)) < int(os.getenv("MAX_CHANNELS_COMMON_SERVER"))
-                ][0]
-            case "CUSTOM":
-                guilds_ids = self.get_guilds_ids(guilds_ids)
-                return [
-                    guild_id for guild_id in guilds_ids
-                    if len(self.get_channels(guild_id)) < int(os.getenv('MAX_CHANNELS_CUSTOM_SERVER'))
-                ][0]
-            case _:
-                raise ValueError("The server type is not specified")
+        if self.SERVER_TYPE == "COMMON":
+            guilds_ids = self.get_guilds_ids(guilds_ids)
+            return [
+                guild_id for guild_id in guilds_ids
+                if len(self.get_channels(guild_id)) < int(os.getenv("MAX_CHANNELS_COMMON_SERVER"))
+            ][0]
+        elif self.SERVER_TYPE == "CUSTOM":
+            guilds_ids = self.get_guilds_ids(guilds_ids)
+            return [
+                guild_id for guild_id in guilds_ids
+                if len(self.get_channels(guild_id)) < int(os.getenv('MAX_CHANNELS_CUSTOM_SERVER'))
+            ][0]
+        else:
+            raise ValueError("The server type is not specified")
 
     def get_available_channel_id(self, guilds_ids: list[str] or str = None) -> str:
         """
