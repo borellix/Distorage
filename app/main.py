@@ -8,6 +8,7 @@ from uuid import uuid4
 app = Flask(__name__)
 API_BASE_URL = os.environ.get('API_BASE_URL')
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
+GUILDS_IDS = os.environ.get('GUILDS_IDS').split(';')
 
 
 class Discord:
@@ -377,7 +378,26 @@ class Server:
         return {guild_id: self.get_boosts_level(guild_id) for guild_id in guilds_ids or self.GUILDS_IDS}
 
 
-discord = Discord(BOT_TOKEN)
+class CommonServer(Server):
+    SERVER_TYPE = 'COMMON'
+
+    def __init__(self):
+        super().__init__(authorization=BOT_TOKEN, guilds_ids=GUILDS_IDS)
+
+
+class CustomServer(Server):
+    SERVER_TYPE = 'CUSTOM'
+
+    def __init__(self,
+                 authorization: str,
+                 guilds_ids: list[str] or str = None,
+                 category_id: str = None,
+                 prefix: str = None
+                 ):
+        super().__init__(authorization=authorization, category_id=category_id, prefix=prefix, guilds_ids=guilds_ids)
+
+
+common_server = CommonServer()
 
 
 @app.route('/')
@@ -391,29 +411,72 @@ def _home():
 
 
 @app.route('/file/upload', methods=['POST'])
-def _file_upload():
-    bot_token = request.form.get('bot_token')
-    channel_id = request.form.get('channel_id')
+def _file_upload() -> dict[str, str]:
+    """
+    Upload a file
+    :return: The uploaded file or an error message
+    """
     file = request.files.get('file')
-    if file is None:
+    if not file:
         return abort(400, {"message": "Bad Request"})
-    path = os.path.join(os.getcwd(), 'temporary', str(uuid4()) + '.' + file.filename.split('.')[-1])
+    authorization = request.form.get('bot_token')
+    category_id = request.form.get('category')
+    guilds_ids = [guild_id.strip() for guild_id in request.form.get('guilds_ids').rsplit(';')]
+
+    path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file.filename.split('.')[-1])
     file.save(path)
 
-    if os.stat(path).st_size / (1024 * 1024) > 8:
-        return abort(400, {"message": f"File Size Exceeds 8MB ({round(os.stat(path).st_size / (1024 * 1024), 2)}MB)"})
+    # if this is a custom server
+    if authorization and guilds_ids:
+        server = CustomServer(authorization, guilds_ids, category_id)
+        guild_id = server.get_available_guild_id(guilds_ids)
+        mb = os.stat(path).st_size / (1024 * 1024)
+        rmb = round(mb, 2)
+        # Check if the file is too big
+        if mb > 8 and server.get_boosts_level(guild_id) < 2:
+            return abort(
+                400, {
+                    "message": f"The file is too big ({rmb}MB)"
+                               f" and the guild ({guild_id}) doesn't have the required boosts level (2)"
+                               f" for upload more than 8MB files"
+                }
+            )
+        elif mb > 50 and server.get_boosts_level(guild_id) < 3:
+            return abort(
+                400, {
+                    "message": f"The file is too big ({rmb}MB)"
+                               f" and the guild ({guild_id}) doesn't have the required boosts level (3)"
+                               f" for upload more than 50MB files"
+                }
+            )
+        elif mb > 100:
+            return abort(
+                400, {
+                    "message": f"The file is too big ({rmb}MB)"
+                               f" for upload more than 100MB files"
+                }
+            )
+        file_key = server.file_upload(path=path)
+        os.remove(path)
+        return file_key
 
-    if bot_token is None and channel_id is None:
-        available_channel_id = discord.get_available_channel_id()
-        if type(available_channel_id) is dict:
-            print(available_channel_id.keys())
-        return discord.upload_file(channel_id=available_channel_id, path=path)
+    # if this is a common server
+    if not authorization and not guilds_ids and not category_id:
+        mb = os.stat(path).st_size / (1024 * 1024)
+        if mb > 8:
+            # os.remove(path) TODO: Delete the file uncomment this line if you want to delete the file
+            return abort(
+                400, {
+                    "message": f"File Size Exceeds 8MB ({round(mb, 2)}MB)"
+                }
+            )
+        file_key = common_server.file_upload(path=path)
+        os.remove(path)
+        return file_key
 
-    if bot_token is not None and channel_id is not None:
-        return discord.upload_file(channel_id=channel_id, path=path,
-                                   authorization="Bot " + bot_token)
+    # else: incoherent request
     else:
-        return abort(400, {"message": "Bad Request 1"})
+        return abort(400, {"message": "Bad Request"})
 
 
 @app.route('/file/download', methods=['POST'])
@@ -455,7 +518,7 @@ def _file_edit():
     if file_key is None or file is None:
         return abort(400, {"message": "Bad Request"})
     channel_id, message_id = file_key.split(':')
-    path = os.path.join(os.getcwd(), 'temporary', str(uuid4()) + '.' + file.filename.split('.')[-1])
+    path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file.filename.split('.')[-1])
     file.save(path)
 
     if os.stat(path).st_size / (1024 * 1024) > 8:
@@ -510,5 +573,5 @@ def service_unavailable(_e):
 
 if __name__ == '__main__':
     print(os.getcwd())
-    print(os.path.join(os.getcwd(), 'temporary'))
+    print(os.path.join(os.getcwd(), 'tmp'))
     app.run('127.0.0.1', port=80, debug=True)
