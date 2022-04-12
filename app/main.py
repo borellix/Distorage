@@ -1,7 +1,7 @@
 import json
 
 import requests
-from flask import Flask, url_for, render_template, redirect, request, abort
+from flask import Flask, url_for, render_template, redirect, request, abort, Response, jsonify
 import os
 from uuid import uuid4
 
@@ -10,125 +10,6 @@ API_BASE_URL = os.environ.get('API_BASE_URL')
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 GUILDS_IDS = os.environ.get('GUILDS_IDS').split(';')
 MEGABYTE = 1024 * 1024
-
-
-class Discord:
-    def __init__(self, bot_token: str):
-        self.AUTHORIZATION = f'Bot {bot_token}'
-
-    def get_available_channel_id(self) -> str or dict:
-        guilds_ids = eval(os.environ['guilds_ids'])  # eval() for convert string to list type
-        for guilds_ids in guilds_ids:
-            channels = self.get_channels(guilds_ids)
-            if len(channels) < 500:
-                for channel in channels:
-                    try:
-                        if channel['type'] == 0:
-                            channel_id = channel['id']
-                            if len(self.get_messages(channel_id)) < 100:
-                                return channel_id
-                    except TypeError:
-                        return abort(401)
-                return self.create_text_channel(name=str(self.get_channel_number(guilds_ids=guilds_ids)),
-                                                guilds_ids=guilds_ids)
-        return abort(503)
-
-    def create_text_channel(self, name: str, guilds_ids: list[str] = None, authorization: [str, None] = None) -> str:
-        return requests.post(
-            url=API_BASE_URL + f"/guilds/{guilds_ids}/channels",
-            headers={'Authorization': authorization if authorization is not None else self.AUTHORIZATION},
-            json={'name': name, 'type': 0}
-        ).json()['id']
-
-    def get_channel_number(self, guilds_ids: list[str] = None) -> int:
-        try:
-            return max([int(channel['name']) for channel in self.get_channels(guilds_ids=guilds_ids)]) + 1
-        except ValueError:
-            return 1
-
-    def get_channels(self, guilds_ids: list[str] = None) -> dict:
-        return requests.get(
-            url=API_BASE_URL + f'/guilds/{guilds_ids}/channels',
-            headers={
-                'Authorization': self.AUTHORIZATION
-            }
-        ).json()
-
-    def get_messages(self, channel_id: str) -> dict:
-        return requests.get(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages',
-            headers={'Authorization': self.AUTHORIZATION}
-        ).json()
-
-    def get_bot_guilds_id(self, authorization: [str, None] = None) -> list:
-        guilds = requests.get(
-            url=API_BASE_URL + f'/users/@me/guilds',
-            headers={'Authorization': authorization if authorization is not None else self.AUTHORIZATION}
-        ).json()
-        try:
-            return [guild['id'] for guild in guilds]
-        except TypeError:
-            return abort(401)
-
-    def upload_file(self, channel_id: str, path: str, authorization: [str, None] = None) -> str or dict:
-        file = open(path, mode='rb')
-        response = requests.post(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages',
-            headers={'Authorization': authorization if authorization is not None else self.AUTHORIZATION},
-            data={"content": ""},
-            files={'file': file}
-        ).json()
-        file.close()
-        os.remove(path)
-        try:
-            message_id = response["id"]
-        except KeyError:
-            return abort(401)
-        requests.patch(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
-            headers={'Authorization': authorization if authorization is not None else self.AUTHORIZATION},
-            data={"content": f"{channel_id}:{message_id}"}
-        )
-        return {"file_key": f"{channel_id}:{message_id}"}
-
-    def edit_file(self, channel_id: str, message_id: str, path: str, authorization: [str, None] = None) -> str or dict:
-        file = open(path, mode='rb')
-        response = requests.patch(
-            url=API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
-            headers={'Authorization': authorization if authorization is not None else self.AUTHORIZATION},
-            files={'file': file,
-                   'payload_json': (None, json.dumps({"attachments": []}), "application/json")
-                   }
-        ).json()
-        print(response)
-        file.close()
-        os.remove(path)
-        try:
-            return {"file_key": f"{channel_id}:{response['id']}"}
-        except KeyError:
-            return abort(401)
-
-    def get_message(self, channel_id, message_id, authorization: [str, None] = None) -> dict:
-        return requests.get(
-            url=API_BASE_URL + f"/channels/{channel_id}/messages/{message_id}",
-            headers={"Authorization": authorization if authorization is not None else self.AUTHORIZATION},
-        ).json()
-
-    def get_channels_ids(self, guilds_ids, authorization: [str, None] = None) -> list:
-        channels_ids = []
-        for guilds_ids in guilds_ids:
-            channels = requests.get(
-                url=API_BASE_URL + f"/guilds/{guilds_ids}/channels",
-                headers={"Authorization": authorization if authorization is not None else self.AUTHORIZATION}
-            ).json()
-            channels_ids += [channel['id'] for channel in channels]
-        return channels_ids
-
-    def delete_file(self, channel_id: str, message_id: str, authorization: [str, None] = None) -> None:
-        requests.delete(
-            url=API_BASE_URL + f"/channels/{channel_id}/messages/{message_id}",
-            headers={"Authorization": authorization if authorization is not None else self.AUTHORIZATION}
-        )
 
 
 class Server:
@@ -142,8 +23,13 @@ class Server:
                  ) -> None:
         self._AUTHORIZATION = None
         self.AUTHORIZATION = authorization
-        self.CATEGORY_ID = str(category_id)
+        if category_id:
+            self.CATEGORY_ID = str(category_id)
+        else:
+            self.CATEGORY_ID = None
         self.PREFIX = prefix
+        if not prefix:
+            self.PREFIX = ""
         if isinstance(guilds_ids, int):
             guilds_ids = str(guilds_ids)
         if isinstance(guilds_ids, str):
@@ -341,13 +227,16 @@ class Server:
         response = requests.patch(
             url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
             headers={'Authorization': self.AUTHORIZATION},
-            files={'file': file}
+            files={
+                'file': file,
+                'payload_json': (None, json.dumps({"attachments": []}), "application/json")
+            }
         ).json()
         file.close()
         # os.remove(path) TODO: Delete the file uncomment this line if you want to delete the file
-        return {'file_key': '{}:{}'.format(channel_id, response['id'])}
+        return {'file_key': file_key}
 
-    def file_delete(self, file_key: str) -> None:
+    def file_delete(self, file_key: str) -> tuple[dict[str, str], int]:
         """
         Delete a file
         :param file_key: The file key of the file to delete
@@ -357,7 +246,8 @@ class Server:
         requests.delete(
             url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
             headers={'Authorization': self.AUTHORIZATION}
-        ).json()  # Delete the file message from the channel
+        )  # Delete the file message from the channel
+        return {'message': "DELETED"}, 200  # Return a response with a status code of 200
 
     def get_boosts_level(self, guild_id: str) -> int:
         """
@@ -417,12 +307,26 @@ class CustomServer(Server):
                  authorization: str,
                  guilds_ids: list[str] or str = None,
                  category_id: str = None,
-                 prefix: str = None
+                 prefix: str = ""
                  ):
         super().__init__(authorization=authorization, category_id=category_id, prefix=prefix, guilds_ids=guilds_ids)
 
+    def get_guild_id_by_channel_id(self, channel_id: str) -> str:
+        """
+        Get the guild id of the channel
+        :param channel_id: The channel id
+        :return: The guild id
+        """
+        return requests.get(
+            url=self.API_BASE_URL + f'/channels/{channel_id}',
+            headers={'Authorization': self.AUTHORIZATION}
+        ).json()['guild_id']  # Get the guild id of the channel
+
     def file_upload_or_edit(self, path: str, file_key: str = None, guilds_ids: list[str] = None) -> dict[str, str]:
-        guild_id = self.get_available_guild_id(guilds_ids)
+        if not file_key:
+            guild_id = self.get_available_guild_id(guilds_ids)
+        else:
+            guild_id = self.get_guild_id_by_channel_id(file_key.split(":")[0])
         file_size = os.path.getsize(path)
         rounded_file_size_megabytes = round(file_size / MEGABYTE, 2)
         # Check if the file is too big
@@ -479,18 +383,20 @@ def _file_upload() -> dict[str, str]:
     """
     file = request.files.get('file')
     if not file:
+        print('No file')
         return abort(400, {"message": "Bad Request"})
 
-    authorization = request.form.get('bot_token')
+    authorization = request.headers.get('bot_token')
     category_id = request.form.get('category')
-    guilds_ids = [guild_id.strip() for guild_id in request.form.get('guilds_ids').rsplit(';')]
-
+    guilds_ids = request.form.get('guilds_ids')
+    print(guilds_ids)
     path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file.filename.split('.')[-1])
     file.save(path)
 
     # if this is a custom server
     if authorization and guilds_ids:
-        custom_server = CustomServer(authorization, guilds_ids, category_id)
+        guilds_ids = [guild_id.strip() for guild_id in request.form.get('guilds_ids').rsplit(';')]
+        custom_server = CustomServer(authorization, guilds_ids, category_id, prefix=request.form.get('prefix'))
         return custom_server.file_upload_or_edit(path=path)
 
     # if this is a common server
@@ -501,15 +407,12 @@ def _file_upload() -> dict[str, str]:
         return abort(400, {"message": "Bad Request"})
 
 
-@app.route('/file/download', methods=['POST'])
-def _file_download():
+@app.route('/file/download/<string:file_key>', methods=['GET'])
+def _file_download(file_key: str):
     """
     Download a file
     :return: The discord url file or an error message
     """
-    file_key = request.form.get('file_key')
-    if file_key is None:
-        return abort(400, {"message": "Bad Request"})
     channel_id, message_id = file_key.split(':')
     authorization = request.args.get('bot_token')
 
@@ -536,41 +439,35 @@ def _file_download():
                 return abort(401, )
 
 
-@app.route('/file/edit', methods=['POST'])
-def _file_edit() -> dict[str, str]:
+@app.route('/file/edit/<string:file_key>', methods=['PATCH'])
+def _file_edit(file_key) -> dict[str, str]:
     """
     Edit a file
     :return: The discord url file or an error message
     """
     file = request.files.get('file')
-    file_key = request.form.get('file_key')
-    if not file_key or not file:
+    if not file:
         return abort(400, {"message": "Bad Request"})
-    authorization = request.form.get('bot_token')
-    guilds_ids = request.form.get('guilds_ids')
+    authorization = request.headers.get('bot_token')
 
     path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file.filename.split('.')[-1])
     file.save(path)
 
-    if authorization and guilds_ids:  # Custom server
-        custom_server = CustomServer(authorization=authorization, guilds_ids=guilds_ids)
+    if authorization:  # Custom server
+        custom_server = CustomServer(authorization=authorization)
         return custom_server.file_upload_or_edit(path=path, file_key=file_key)
 
-    if not authorization and not guilds_ids:  # Common server
+    else:  # Common server
         return common_server.file_upload_or_edit(path=path, file_key=file_key)
 
-    # else: incoherent request
-    else:
-        return abort(400, {"message": "Bad Request"})
 
-
-@app.route('/file/delete', methods=['POST'])
+@app.route('/file/delete', methods=['DELETE'])
 def _file_delete():
     file_key = request.form.get('file_key')
     if not file_key:
         return abort(404, {"message": "Bad Request"})
 
-    authorization = request.args.get('bot_token')
+    authorization = request.headers.get('bot_token')
 
     if authorization:  # Custom server
         custom_server = CustomServer(authorization=authorization)

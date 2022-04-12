@@ -5,3 +5,4 @@ tmp/
 .env
 **/__pycache__/
 tests_upload_files/
+Procfile.windows
