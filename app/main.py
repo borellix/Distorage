@@ -567,17 +567,16 @@ def _file_edit() -> dict[str, str]:
 @app.route('/file/delete', methods=['POST'])
 def _file_delete():
     file_key = request.form.get('file_key')
-    if file_key is None:
+    if not file_key:
         return abort(404, {"message": "Bad Request"})
 
-    channel_id, message_id = file_key.split(':')
-    bot_token = request.args.get('bot_token')
+    authorization = request.args.get('bot_token')
 
-    if bot_token is None:  # Common server
-        discord.delete_file(channel_id, message_id)
-    else:  # Custom server
-        discord.delete_file(channel_id, message_id, authorization=bot_token)
-    return ""
+    if authorization:  # Custom server
+        custom_server = CustomServer(authorization=authorization)
+        return custom_server.file_delete(file_key=file_key)
+    else:  # Common server
+        return common_server.file_delete(file_key=file_key)
 
 
 @app.errorhandler(400)
