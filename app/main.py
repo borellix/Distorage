@@ -9,6 +9,7 @@ app = Flask(__name__)
 API_BASE_URL = os.environ.get('API_BASE_URL')
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 GUILDS_IDS = os.environ.get('GUILDS_IDS').split(';')
+MEGABYTE = 1024 * 1024
 
 
 class Discord:
@@ -306,7 +307,7 @@ class Server:
             headers={'Authorization': self.AUTHORIZATION}
         ).json()  # Get message
 
-    def file_upload(self, path: str, guilds_ids: list[str] = None, channel_id: str = None) -> dict[str, str]:
+    def _file_upload(self, path: str, guilds_ids: list[str] = None, channel_id: str = None) -> dict[str, str]:
         """"
         Upload a file
         :param path: The path of the file to upload
@@ -328,7 +329,7 @@ class Server:
         # os.remove(path)  TODO: Delete the file uncomment this line if you want to delete the file
         return {'file_key': '{}:{}'.format(channel_id, response['id'])}  # Return the file key
 
-    def file_edit(self, file_key: str, path: str) -> dict[str, str]:
+    def _file_edit(self, file_key: str, path: str) -> dict[str, str]:
         """
         Edit a file
         :param file_key: The file key of the file to edit
@@ -384,6 +385,30 @@ class CommonServer(Server):
     def __init__(self):
         super().__init__(authorization=BOT_TOKEN, guilds_ids=GUILDS_IDS)
 
+    def file_upload_or_edit(self, path: str, file_key: str = None, guilds_ids: list[str] = None) -> dict[str, str]:
+        """
+        Upload or edit the file with check if the size limit doesn't
+        exceed the limit of the server
+        :param path: The path of the file to upload or edit
+        :param file_key: The file key of the file to edit
+        :param guilds_ids: The guilds ids
+        :return: The file key
+        """
+        # Check if the file doesn't exceed the limit of the server (8MB)
+        file_size = os.path.getsize(path)
+        if file_size > 8 * MEGABYTE:
+            return abort(
+                400,
+                {'message': f"The file is too big ({round(file_size / MEGABYTE, 2)}MB), the limit is 8MB"}
+            )
+        if file_key:
+            self._file_edit(file_key=file_key, path=path)
+        else:
+            # Upload the file if the file_key is None
+            file_key = self._file_upload(path=path, guilds_ids=guilds_ids)
+        os.remove(path)  # Delete the file
+        return {'file_key': file_key}
+
 
 class CustomServer(Server):
     SERVER_TYPE = 'CUSTOM'
@@ -395,6 +420,42 @@ class CustomServer(Server):
                  prefix: str = None
                  ):
         super().__init__(authorization=authorization, category_id=category_id, prefix=prefix, guilds_ids=guilds_ids)
+
+    def file_upload_or_edit(self, path: str, file_key: str = None, guilds_ids: list[str] = None) -> dict[str, str]:
+        guild_id = self.get_available_guild_id(guilds_ids)
+        file_size = os.path.getsize(path)
+        rounded_file_size_megabytes = round(file_size / MEGABYTE, 2)
+        # Check if the file is too big
+        if file_size > 8 * MEGABYTE and self.get_boosts_level(guild_id) < 2:
+            return abort(
+                400, {
+                    "message": f"The file is too big ({rounded_file_size_megabytes}MB)"
+                               f" and the guild ({guild_id}) doesn't have the required boosts level (2)"
+                               f" for upload more than 8MB files"
+                }
+            )
+        elif file_size > 50 * MEGABYTE and self.get_boosts_level(guild_id) < 3:
+            return abort(
+                400, {
+                    "message": f"The file is too big ({rounded_file_size_megabytes}MB)"
+                               f" and the guild ({guild_id}) doesn't have the required boosts level (3)"
+                               f" for upload more than 50MB files"
+                }
+            )
+        elif file_size > 100 * MEGABYTE:
+            return abort(
+                400, {
+                    "message": f"The file is too big ({rounded_file_size_megabytes}MB)"
+                               f" for upload more than 100MB files"
+                }
+            )
+
+        if file_key:
+            self._file_edit(file_key=file_key, path=path)
+        else:
+            file_key = self._file_upload(path=path)
+        os.remove(path)
+        return {'file_key': file_key}
 
 
 common_server = CommonServer()
@@ -419,6 +480,7 @@ def _file_upload() -> dict[str, str]:
     file = request.files.get('file')
     if not file:
         return abort(400, {"message": "Bad Request"})
+
     authorization = request.form.get('bot_token')
     category_id = request.form.get('category')
     guilds_ids = [guild_id.strip() for guild_id in request.form.get('guilds_ids').rsplit(';')]
@@ -428,52 +490,12 @@ def _file_upload() -> dict[str, str]:
 
     # if this is a custom server
     if authorization and guilds_ids:
-        server = CustomServer(authorization, guilds_ids, category_id)
-        guild_id = server.get_available_guild_id(guilds_ids)
-        mb = os.stat(path).st_size / (1024 * 1024)
-        rmb = round(mb, 2)
-        # Check if the file is too big
-        if mb > 8 and server.get_boosts_level(guild_id) < 2:
-            return abort(
-                400, {
-                    "message": f"The file is too big ({rmb}MB)"
-                               f" and the guild ({guild_id}) doesn't have the required boosts level (2)"
-                               f" for upload more than 8MB files"
-                }
-            )
-        elif mb > 50 and server.get_boosts_level(guild_id) < 3:
-            return abort(
-                400, {
-                    "message": f"The file is too big ({rmb}MB)"
-                               f" and the guild ({guild_id}) doesn't have the required boosts level (3)"
-                               f" for upload more than 50MB files"
-                }
-            )
-        elif mb > 100:
-            return abort(
-                400, {
-                    "message": f"The file is too big ({rmb}MB)"
-                               f" for upload more than 100MB files"
-                }
-            )
-        file_key = server.file_upload(path=path)
-        os.remove(path)
-        return file_key
+        custom_server = CustomServer(authorization, guilds_ids, category_id)
+        return custom_server.file_upload_or_edit(path=path)
 
     # if this is a common server
     if not authorization and not guilds_ids and not category_id:
-        mb = os.stat(path).st_size / (1024 * 1024)
-        if mb > 8:
-            # os.remove(path) TODO: Delete the file uncomment this line if you want to delete the file
-            return abort(
-                400, {
-                    "message": f"File Size Exceeds 8MB ({round(mb, 2)}MB)"
-                }
-            )
-        file_key = common_server.file_upload(path=path)
-        os.remove(path)
-        return file_key
-
+        return common_server.file_upload_or_edit(path=path)
     # else: incoherent request
     else:
         return abort(400, {"message": "Bad Request"})
@@ -515,28 +537,31 @@ def _file_download():
 
 
 @app.route('/file/edit', methods=['POST'])
-def _file_edit():
-    bot_token = request.form.get('bot_token')
-    file_key = request.form.get('file_key')
+def _file_edit() -> dict[str, str]:
+    """
+    Edit a file
+    :return: The discord url file or an error message
+    """
     file = request.files.get('file')
-    if file_key is None or file is None:
+    file_key = request.form.get('file_key')
+    if not file_key or not file:
         return abort(400, {"message": "Bad Request"})
-    channel_id, message_id = file_key.split(':')
+    authorization = request.form.get('bot_token')
+    guilds_ids = request.form.get('guilds_ids')
+
     path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file.filename.split('.')[-1])
     file.save(path)
 
-    if os.stat(path).st_size / (1024 * 1024) > 8:
-        return abort(400, {"message": f"File Size Exceeds 8MB ({round(os.stat(path).st_size / (1024 * 1024), 2)}MB)"})
+    if authorization and guilds_ids:  # Custom server
+        custom_server = CustomServer(authorization=authorization, guilds_ids=guilds_ids)
+        return custom_server.file_upload_or_edit(path=path, file_key=file_key)
 
-    if bot_token is None:
-        available_channel_id = discord.get_available_channel_id()
-        if type(available_channel_id) is dict:
-            print(available_channel_id.keys())
-        return discord.edit_file(channel_id=available_channel_id, message_id=message_id, path=path)
+    if not authorization and not guilds_ids:  # Common server
+        return common_server.file_upload_or_edit(path=path, file_key=file_key)
 
+    # else: incoherent request
     else:
-        return discord.edit_file(channel_id=channel_id, message_id=message_id, path=path,
-                                 authorization="Bot " + bot_token)
+        return abort(400, {"message": "Bad Request"})
 
 
 @app.route('/file/delete', methods=['POST'])
