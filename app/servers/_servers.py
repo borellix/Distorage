@@ -47,26 +47,12 @@ class Server:
     def AUTHORIZATION(self, authorization) -> None:
         self._AUTHORIZATION = f'Bot {authorization}'
 
-    def get_guilds_ids(self, guilds_ids: list[str] or str = None) -> list[str]:
-        if isinstance(guilds_ids, str):
-            return [guilds_ids]
-        if isinstance(guilds_ids, int):
-            return [str(guilds_ids)]
-        if not guilds_ids:
-            if self.GUILDS_IDS:
-                return self.GUILDS_IDS
-            else:
-                raise ValueError("No guild ID is specified")
-
-        return guilds_ids
-
-    def get_channels(self, guilds_ids: list[str] or str = None) -> list[dict] or any:
+    def get_channels(self, guild_id: str = None) -> list[dict] or any:
         """
         Get channels of guild that begin with the prefix
-        :param guilds_ids: The guild id or list of guild ids
         :return: The channels of the guild
         """
-        guilds_ids = self.get_guilds_ids(guilds_ids)
+        guilds_ids = [guild_id] if guild_id else self.GUILDS_IDS
 
         return [
             channel for guild_channel in [
@@ -79,45 +65,38 @@ class Server:
             ] for channel in guild_channel if channel['name'].startswith(self.PREFIX)
         ]  # Return the channels of the guilds that begin with the prefix
 
-    def get_channels_ids(self, guilds_ids: list[str] = None) -> list[str]:
+    def get_channels_ids(self) -> list[str]:
         """
         Get the ids of the channels
-        :param guilds_ids: The guild id
         :return: The ids of the channels
         """
-        guilds_ids = self.get_guilds_ids(guilds_ids)
-        return [channel['id'] for channel in self.get_channels(guilds_ids=guilds_ids)]
+        return [channel['id'] for channel in self.get_channels()]
 
-    def get_available_guild_id(self, guilds_ids: list[str] = None) -> str:
+    def get_available_guild_id(self) -> str:
         """
         Get the id of the first guild that has less than 500 channels for a common server and 400 channels for custom
         server
-        :param guilds_ids: The list of guild ids
         :return: The id of the first guild that has less than 500 channels for a common server and 400 channels for
         """
         if self.SERVER_TYPE == "COMMON":
-            guilds_ids = self.get_guilds_ids(guilds_ids)
             return [
-                guild_id for guild_id in guilds_ids
+                guild_id for guild_id in self.GUILDS_IDS
                 if len(self.get_channels(guild_id)) < int(os.getenv("MAX_CHANNELS_COMMON_SERVER"))
             ][0]
         elif self.SERVER_TYPE == "CUSTOM":
-            guilds_ids = self.get_guilds_ids(guilds_ids)
             return [
-                guild_id for guild_id in guilds_ids
+                guild_id for guild_id in self.GUILDS_IDS
                 if len(self.get_channels(guild_id)) < int(os.getenv('MAX_CHANNELS_CUSTOM_SERVER'))
             ][0]
         else:
             raise ValueError("The server type is not specified")
 
-    def get_available_channel_id(self, guilds_ids: list[str] or str = None) -> str:
+    def get_available_channel_id(self) -> str:
         """
         Get available channel id
-        :param guilds_ids: The guilds ids or the guild id where it will be found an available channel
         :return: The available channel id
         """
-        guilds_ids = self.get_guilds_ids(guilds_ids)
-        channels = self.get_channels(guilds_ids=guilds_ids)  # Get channels that begin with the prefix
+        channels = self.get_channels()  # Get channels that begin with the prefix
 
         # Keep only the channels that are a text channel
         channels = [channel for channel in channels if channel['type'] == 0]
@@ -127,21 +106,21 @@ class Server:
 
         # If there is no channel that hasn't got 100 messages in it, create a new one
         if not channels:
-            available_guild_id = self.get_available_guild_id(guilds_ids=guilds_ids)
+            available_guild_id = self.get_available_guild_id()
             return self.create_text_channel(
                 guild_id=available_guild_id,
                 name=self.PREFIX + str(self.get_channel_number(guild_id=available_guild_id))
             )['id']
         return channels[0]['id']
 
-    def get_channel_number(self, guild_id: str = None) -> int:
+    def get_channel_number(self, guild_id: str) -> int:
         """
         Get the numbers of channels that begin with the prefix
         :param guild_id: The guild id
         :return: The numbers of channels begin with the prefix
         """
         try:
-            channels = self.get_channels(guilds_ids=guild_id)  # Get channels that begin with the prefix
+            channels = self.get_channels(guild_id)  # Get channels that begin with the prefix
             return len(channels) + 1  # Return the number of channels that begin with the prefix + 1
         except ValueError:
             return 1
@@ -190,18 +169,17 @@ class Server:
             headers={'Authorization': self.AUTHORIZATION}
         ).json()  # Get message
 
-    def _file_upload(self, path: str, guilds_ids: list[str] = None, channel_id: str = None) -> dict[str, str]:
+    def _file_upload(self, path: str, channel_id: str = None) -> dict[str, str]:
         """"
         Upload a files
         :param path: The path of the files to upload
-        :param guilds_ids: The guild id where the files will be uploaded
         :param channel_id: The channel id where the files will be uploaded
         :return: The uploaded files
         """
         file = open(path, 'rb')  # Open the file to upload
         if channel_id is None:
             # Get available channel id if channel_id is None
-            channel_id = self.get_available_channel_id(guilds_ids=guilds_ids)
+            channel_id = self.get_available_channel_id()
         response = requests.post(
             url=self.API_BASE_URL + f'/channels/{channel_id}/messages',
             headers={'Authorization': self.AUTHORIZATION},
@@ -209,7 +187,6 @@ class Server:
             files={'files': file}
         ).json()  # Upload the file
         file.close()  # Close the file
-        os.remove(path)  # Remove the temporary file
         return {'file_key': '{}:{}'.format(channel_id, response['id'])}  # Return the file key
 
     def _file_edit(self, file_key: str, path: str) -> dict[str, str]:
@@ -230,7 +207,6 @@ class Server:
             }
         ).json()  # Edit the file
         file.close()  # Close the file
-        os.remove(path)  # Remove the temporary file
         return {'file_key': file_key}
 
     def file_delete(self, file_key: str) -> tuple[dict[str, str], int]:
@@ -272,13 +248,12 @@ class CommonServer(Server):
     def __init__(self):
         super().__init__(authorization=AUTHORIZATION, guilds_ids=GUILDS_IDS)
 
-    def file_upload_or_edit(self, path: str, file_key: str = None, guilds_ids: list[str] = None) -> dict[str, str]:
+    def file_upload_or_edit(self, path: str, file_key: str = None) -> dict[str, str]:
         """
         Upload or edit the files with check if the size limit doesn't
         exceed the limit of the server
         :param path: The path of the files to upload or edit
         :param file_key: The files key of the files to edit
-        :param guilds_ids: The guilds ids
         :return: The files key
         """
         # Check if the files doesn't exceed the limit of the server (8MB)
@@ -290,12 +265,13 @@ class CommonServer(Server):
             )
         if file_key:
             self._file_edit(file_key=file_key, path=path)
+            os.remove(path)  # Delete the file
             return {'file_key': file_key}
         else:
             # Upload the files if the file_key is None
-            file_key = self._file_upload(path=path, guilds_ids=guilds_ids)
-        os.remove(path)  # Delete the files
-        return file_key
+            file_key = self._file_upload(path=path)
+            os.remove(path)  # Delete the file
+            return file_key
 
 
 class CustomServer(Server):
@@ -320,9 +296,9 @@ class CustomServer(Server):
             headers={'Authorization': self.AUTHORIZATION}
         ).json()['guild_id']  # Get the guild id of the channel
 
-    def file_upload_or_edit(self, path: str, file_key: str = None, guilds_ids: list[str] = None) -> dict[str, str]:
+    def file_upload_or_edit(self, path: str, file_key: str = None) -> dict[str, str]:
         if not file_key:
-            guild_id = self.get_available_guild_id(guilds_ids)
+            guild_id = self.get_available_guild_id()
         else:
             guild_id = self.get_guild_id_by_channel_id(file_key.split(":")[0])
         file_size = os.path.getsize(path)
@@ -354,8 +330,9 @@ class CustomServer(Server):
 
         if file_key:
             self._file_edit(file_key=file_key, path=path)
+            os.remove(path)
             return {'file_key': file_key}
         else:
             file_key = self._file_upload(path=path)
-        os.remove(path)
-        return file_key
+            os.remove(path)
+            return file_key

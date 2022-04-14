@@ -13,3 +13,4 @@ tests_upload_files/
 **/__pycache__/
 
 Procfile.windows
+launch.py

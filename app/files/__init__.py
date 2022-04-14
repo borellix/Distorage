@@ -61,7 +61,7 @@ def download(file_key) -> dict[str, str]:
         try:
             return {'url': response['attachments'][0]['url']}
         except (KeyError, IndexError):
-            if channel_id in common_server.get_channels_ids(common_server.get_guilds_ids()):
+            if channel_id in common_server.get_channels_ids():
                 return abort(404, {"message": "File Not Found"})
             else:
                 return abort(401, {"message": "Unauthorized"})
