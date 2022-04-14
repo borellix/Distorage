@@ -14,16 +14,16 @@ class Server:
 
     def __init__(self,
                  authorization: str,
-                 category_id: str = None,
+                 category_name: str = None,
                  prefix: str = "",
                  guilds_ids: list[str] or str = None
                  ) -> None:
         self._AUTHORIZATION = None
         self.AUTHORIZATION = authorization
-        if category_id:
-            self.CATEGORY_ID = str(category_id)
+        if category_name:
+            self.CATEGORY_NAME = str(category_name)
         else:
-            self.CATEGORY_ID = None
+            self.CATEGORY_NAME = None
         self.PREFIX = prefix
         if not prefix:
             self.PREFIX = ""
@@ -47,13 +47,22 @@ class Server:
     def AUTHORIZATION(self, authorization) -> None:
         self._AUTHORIZATION = f'Bot {authorization}'
 
+    def get_bot_id(self) -> str:
+        """
+        Get the bot id
+        :return: The bot id
+        """
+        return requests.get(
+            url=self.API_BASE_URL + '/users/@me',
+            headers={'Authorization': self.AUTHORIZATION},
+        ).json()['id']  # Get the bot id
+
     def get_channels(self, guild_id: str = None) -> list[dict] or any:
         """
         Get channels of guild that begin with the prefix
         :return: The channels of the guild
         """
         guilds_ids = [guild_id] if guild_id else self.GUILDS_IDS
-
         return [
             channel for guild_channel in [
                 (
@@ -100,8 +109,14 @@ class Server:
 
         # Keep only the channels that are a text channel
         channels = [channel for channel in channels if channel['type'] == 0]
-        if self.CATEGORY_ID:
-            channels = [channel for channel in channels if channel['parent_id'] == self.CATEGORY_ID]
+        if self.CATEGORY_NAME:
+            channels = [
+                channel for channel in channels if
+                channel['parent_id'] == self.get_category_id(
+                    guild_id=channel['guild_id'],
+                    category_name=self.CATEGORY_NAME
+                )
+            ]
         channels = [channel for channel in channels if len(self.get_messages(channel_id=channel['id'])) < 100]
 
         # If there is no channel that hasn't got 100 messages in it, create a new one
@@ -125,6 +140,66 @@ class Server:
         except ValueError:
             return 1
 
+    def get_everyone_id(self, guild_id: str) -> str:
+        """
+        Get the id of the everyone role
+        :param guild_id: The guild id
+        :return: The id of the everyone role
+        """
+        # Use requests
+        response = requests.get(
+            url=self.API_BASE_URL + f"/guilds/{guild_id}/roles",
+            headers={'Authorization': self.AUTHORIZATION}
+        )
+        # Get the id of the everyone role
+        return [role['id'] for role in response.json() if role['name'] == "@everyone"][0]
+
+    def get_category_id(self, guild_id: str, category_name: str) -> str:
+        """
+        Get the id of the category
+        :param guild_id: The guild id
+        :param category_name: The category name
+        :return: The id of the category
+        """
+        response = requests.get(
+            url=self.API_BASE_URL + f"/guilds/{guild_id}/channels",
+            headers={'Authorization': self.AUTHORIZATION}
+        )
+        try:
+            return [category['id'] for category in response.json() if category['name'] == category_name][0]
+        except IndexError:
+            return self.create_category(guild_id=guild_id, name=category_name)['id']
+
+    def create_category(self, guild_id: str, name: str) -> dict:
+        """
+        Create a category channel
+        :param guild_id: The guild id
+        :param name: The name of the category channel
+        :return: The category channel
+        """
+        r = requests.post(
+            url=self.API_BASE_URL + f"/guilds/{guild_id}/channels",
+            headers={'Authorization': self.AUTHORIZATION},
+            json={
+                "name": name,
+                "type": 4,
+                "permission_overwrites": [
+                    {
+                        "type": 0,  # 0 = role
+                        "id": self.get_everyone_id(guild_id=guild_id),  # Get the id of the everyone role
+                        "deny": 0x400 | 0x10  # Deny the permission to see the channel
+                    },
+                    {
+                        "type": 1,  # 1 = user
+                        "id": self.get_bot_id(),  # Get the id of the bot
+                        "allow": 0x400 | 0x10  # Allow the permission to:
+                        # see the channel and manage channel
+                    }
+                ]
+            }
+        ).json()
+        return r
+
     def create_text_channel(self, name: str, guild_id: str) -> dict:
         """
         Create a text channel
@@ -136,8 +211,8 @@ class Server:
             'name': name,
             'type': 0,  # 0 = text
         }
-        if self.CATEGORY_ID:
-            json_data['parent_id'] = self.CATEGORY_ID
+        if self.CATEGORY_NAME:
+            json_data['parent_id'] = self.get_category_id(guild_id=guild_id, category_name=self.CATEGORY_NAME)
 
         r = requests.post(
             url=self.API_BASE_URL + f'/guilds/{guild_id}/channels',
@@ -280,10 +355,10 @@ class CustomServer(Server):
     def __init__(self,
                  authorization: str,
                  guilds_ids: list[str] or str = None,
-                 category_id: str = None,
+                 category_name: str = None,
                  prefix: str = ""
                  ):
-        super().__init__(authorization=authorization, category_id=category_id, prefix=prefix, guilds_ids=guilds_ids)
+        super().__init__(authorization=authorization, category_name=category_name, prefix=prefix, guilds_ids=guilds_ids)
 
     def get_guild_id_by_channel_id(self, channel_id: str) -> str:
         """

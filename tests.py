@@ -69,6 +69,7 @@ class TestCustom(unittest.TestCase):
             },
             data={
                 "guilds_ids": self.guilds_ids,
+                "category": "HOSTING",
                 "prefix": "host-"
             },
             files={

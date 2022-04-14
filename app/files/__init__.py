@@ -17,7 +17,7 @@ def upload() -> dict[str, str]:
         return abort(400, {"message": "Bad Request"})
 
     authorization = request.headers.get('Authorization')
-    category_id = request.form.get('category')
+    category_name = request.form.get('category')
     guilds_ids = request.form.get('guilds_ids')
     path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file_.filename.split('.')[-1])
     file_.save(path)
@@ -25,11 +25,11 @@ def upload() -> dict[str, str]:
     # if this is a custom server
     if authorization and guilds_ids:
         guilds_ids = [guild_id.strip() for guild_id in request.form.get('guilds_ids').rsplit(';')]
-        custom_server = CustomServer(authorization, guilds_ids, category_id, prefix=request.form.get('prefix'))
+        custom_server = CustomServer(authorization, guilds_ids, category_name, prefix=request.form.get('prefix'))
         return custom_server.file_upload_or_edit(path=path)
 
     # if this is a common server
-    if not authorization and not guilds_ids and not category_id:
+    if not authorization and not guilds_ids and not category_name:
         return common_server.file_upload_or_edit(path=path)
     # else: incoherent request
     else:
