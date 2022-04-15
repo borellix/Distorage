@@ -18,6 +18,11 @@ def not_found(e):
     return {"error": {"message": e.description['message'], "code": 404}}, 404
 
 
+@errors.errorhandler(429)
+def too_many_requests(_e):
+    return {"error": {"message": "Too many requests", "code": 429}}, 429
+
+
 @errors.errorhandler(503)
 def service_unavailable(_e):
     return {"error": {"message": "Service Unavailable", "code": 503}}, 503

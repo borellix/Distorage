@@ -1,3 +1,5 @@
+import time
+
 import requests
 import os
 import json
@@ -47,14 +49,43 @@ class Server:
     def AUTHORIZATION(self, authorization) -> None:
         self._AUTHORIZATION = f'Bot {authorization}'
 
+    def call(self, method: str, endpoint: str, json_data: dict = None, headers: dict = None, files: dict = None) -> any:
+        """
+        Call the endpoint
+        :param method: The method to call
+        :param endpoint: The endpoint to call
+        :param json_data: The json to send
+        :param headers: The headers to send
+        :param files: The files to send
+        :return: The response
+        """
+        kwargs = {
+            'method': method,
+            'url': self.API_BASE_URL + endpoint,
+            'headers': headers or {'Authorization': self.AUTHORIZATION},
+        }
+        if json_data:
+            kwargs['json'] = json_data
+        if files:
+            kwargs['files'] = files
+        response = requests.request(
+            **kwargs
+        )
+        if response.headers['x-ratelimit-remaining'] == '0':
+            print("Retry in {} seconds".format(response.headers['x-ratelimit-reset-after']))
+            print("Retry at {}".format(response.headers['x-ratelimit-reset']))
+            time.sleep(float(response.headers['x-ratelimit-reset-after']))
+            self.call(method, endpoint, json_data, headers, files)
+        return response
+
     def get_bot_id(self) -> str:
         """
         Get the bot id
         :return: The bot id
         """
-        return requests.get(
-            url=self.API_BASE_URL + '/users/@me',
-            headers={'Authorization': self.AUTHORIZATION},
+        return self.call(
+            method='GET',
+            endpoint='/users/@me',
         ).json()['id']  # Get the bot id
 
     def get_channels(self, guild_id: str = None) -> list[dict] or any:
@@ -66,9 +97,9 @@ class Server:
         return [
             channel for guild_channel in [
                 (
-                    requests.get(
-                        url=self.API_BASE_URL + f'/guilds/{guild_id}/channels',
-                        headers={'Authorization': self.AUTHORIZATION},
+                    self.call(
+                        method='GET',
+                        endpoint=f'/guilds/{guild_id}/channels'
                     ).json()
                 ) for guild_id in guilds_ids
             ] for channel in guild_channel if channel['name'].startswith(self.PREFIX)
@@ -146,10 +177,9 @@ class Server:
         :param guild_id: The guild id
         :return: The id of the everyone role
         """
-        # Use requests
-        response = requests.get(
-            url=self.API_BASE_URL + f"/guilds/{guild_id}/roles",
-            headers={'Authorization': self.AUTHORIZATION}
+        response = self.call(
+            method="GET",
+            endpoint=f"/guilds/{guild_id}/roles",
         )
         # Get the id of the everyone role
         return [role['id'] for role in response.json() if role['name'] == "@everyone"][0]
@@ -161,9 +191,9 @@ class Server:
         :param category_name: The category name
         :return: The id of the category
         """
-        response = requests.get(
-            url=self.API_BASE_URL + f"/guilds/{guild_id}/channels",
-            headers={'Authorization': self.AUTHORIZATION}
+        response = self.call(
+            method="GET",
+            endpoint=f"/guilds/{guild_id}/channels",
         )
         try:
             return [category['id'] for category in response.json() if category['name'] == category_name][0]
@@ -177,10 +207,10 @@ class Server:
         :param name: The name of the category channel
         :return: The category channel
         """
-        r = requests.post(
-            url=self.API_BASE_URL + f"/guilds/{guild_id}/channels",
-            headers={'Authorization': self.AUTHORIZATION},
-            json={
+        return self.call(
+            method='POST',
+            endpoint=f"/guilds/{guild_id}/channels",
+            json_data={
                 "name": name,
                 "type": 4,
                 "permission_overwrites": [
@@ -198,7 +228,6 @@ class Server:
                 ]
             }
         ).json()
-        return r
 
     def create_text_channel(self, name: str, guild_id: str) -> dict:
         """
@@ -214,10 +243,10 @@ class Server:
         if self.CATEGORY_NAME:
             json_data['parent_id'] = self.get_category_id(guild_id=guild_id, category_name=self.CATEGORY_NAME)
 
-        r = requests.post(
-            url=self.API_BASE_URL + f'/guilds/{guild_id}/channels',
-            headers={'Authorization': self.AUTHORIZATION},
-            json=json_data
+        r = self.call(
+            method='POST',
+            endpoint=f'/guilds/{guild_id}/channels',
+            json_data=json_data
         ).json()  # Create a text channel with the name in the guild
         return r
 
@@ -227,9 +256,9 @@ class Server:
         :param channel_id: The channel id
         :return: The messages of the channel
         """
-        return requests.get(
-            url=self.API_BASE_URL + f'/channels/{channel_id}/messages',
-            headers={'Authorization': self.AUTHORIZATION}
+        return self.call(
+            method='GET',
+            endpoint=f'/channels/{channel_id}/messages',
         ).json()  # Get messages of the channel
 
     def get_message(self, channel_id: str, message_id: str) -> dict:
@@ -239,9 +268,9 @@ class Server:
         :param message_id: The message id
         :return: The message
         """
-        return requests.get(
-            url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
-            headers={'Authorization': self.AUTHORIZATION}
+        return self.call(
+            method='GET',
+            endpoint=f'/channels/{channel_id}/messages/{message_id}',
         ).json()  # Get message
 
     def _file_upload(self, path: str, channel_id: str = None) -> dict[str, str]:
@@ -255,10 +284,10 @@ class Server:
         if channel_id is None:
             # Get available channel id if channel_id is None
             channel_id = self.get_available_channel_id()
-        response = requests.post(
-            url=self.API_BASE_URL + f'/channels/{channel_id}/messages',
-            headers={'Authorization': self.AUTHORIZATION},
-            json={'content': ''},
+        response = self.call(
+            method='POST',
+            endpoint=f'/channels/{channel_id}/messages',
+            json_data={'content': ''},
             files={'files': file}
         ).json()  # Upload the file
         file.close()  # Close the file
@@ -273,9 +302,9 @@ class Server:
         """
         channel_id, message_id = file_key.split(":")
         file = open(path, 'rb')  # Open the file to edit
-        requests.patch(
-            url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
-            headers={'Authorization': self.AUTHORIZATION},
+        self.call(
+            method='PATCH',
+            endpoint=f'/channels/{channel_id}/messages/{message_id}',
             files={
                 'files': file,
                 'payload_json': (None, json.dumps({"attachments": []}), "application/json")
@@ -291,9 +320,9 @@ class Server:
         :return: None
         """
         channel_id, message_id = file_key.split(":")  # Get the channel id and the message id
-        requests.delete(
-            url=self.API_BASE_URL + f'/channels/{channel_id}/messages/{message_id}',
-            headers={'Authorization': self.AUTHORIZATION}
+        self.call(
+            method='DELETE',
+            endpoint=f'/channels/{channel_id}/messages/{message_id}',
         )  # Delete the files message from the channel
         return {'message': "DELETED"}, 200  # Return a response with a status code of 200
 
@@ -303,9 +332,9 @@ class Server:
         :param guild_id: The guild id
         :return: The boosts level
         """
-        return requests.get(
-            url=self.API_BASE_URL + f'/guilds/{guild_id}',
-            headers={'Authorization': self.AUTHORIZATION}
+        return self.call(
+            method='GET',
+            endpoint=f'/guilds/{guild_id}',
         ).json()['premium_tier']  # Get the boosts level of the guild
 
     def get_boosts_levels(self, guilds_ids: list[str] = None) -> dict[str, int]:
@@ -366,9 +395,9 @@ class CustomServer(Server):
         :param channel_id: The channel id
         :return: The guild id
         """
-        return requests.get(
-            url=self.API_BASE_URL + f'/channels/{channel_id}',
-            headers={'Authorization': self.AUTHORIZATION}
+        return self.call(
+            method='GET',
+            endpoint=f'/channels/{channel_id}',
         ).json()['guild_id']  # Get the guild id of the channel
 
     def file_upload_or_edit(self, path: str, file_key: str = None) -> dict[str, str]:
