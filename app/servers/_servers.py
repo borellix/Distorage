@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 
 import requests
 import os
@@ -22,10 +23,7 @@ class Server:
                  ) -> None:
         self._AUTHORIZATION = None
         self.AUTHORIZATION = authorization
-        if category_name:
-            self.CATEGORY_NAME = str(category_name)
-        else:
-            self.CATEGORY_NAME = None
+
         self.PREFIX = prefix
         if not prefix:
             self.PREFIX = ""
@@ -36,6 +34,22 @@ class Server:
 
         self.GUILDS_IDS = guilds_ids
         self._SERVER_TYPE = None
+
+        if category_name:
+            self.CATEGORY_NAME = str(category_name)
+            self.CATEGORIES_IDS = {
+                guild_id: self.get_category_id(guild_id, self.CATEGORY_NAME)
+                for guild_id in self.GUILDS_IDS
+            }
+        else:
+            self.CATEGORY_NAME = None
+
+        self.CHANNELS_MESSAGES_COUNT: dict[str, int] = {
+            channel_id: len(self.get_messages(channel_id)) for channels_ids in [
+                self.get_channels_ids(guild_id) for guild_id in self.GUILDS_IDS
+            ] for channel_id in channels_ids
+        }
+        print(self.CHANNELS_MESSAGES_COUNT)
 
     @property
     def SERVER_TYPE(self):
@@ -71,9 +85,8 @@ class Server:
         response = requests.request(
             **kwargs
         )
-        if response.headers['x-ratelimit-remaining'] == '0':
-            print("Retry in {} seconds".format(response.headers['x-ratelimit-reset-after']))
-            print("Retry at {}".format(response.headers['x-ratelimit-reset']))
+        if response.headers.get('X-Ratelimit-Remaining') == '0':
+            print("Retry at {}".format(datetime.fromtimestamp(float(response.headers['x-ratelimit-reset']))))
             time.sleep(float(response.headers['x-ratelimit-reset-after']))
             self.call(method, endpoint, json_data, headers, files)
         return response
@@ -105,12 +118,13 @@ class Server:
             ] for channel in guild_channel if channel['name'].startswith(self.PREFIX)
         ]  # Return the channels of the guilds that begin with the prefix
 
-    def get_channels_ids(self) -> list[str]:
+    def get_channels_ids(self, guild_id: str = None) -> list[str]:
         """
         Get the ids of the channels
+        :param guild_id: The guild id
         :return: The ids of the channels
         """
-        return [channel['id'] for channel in self.get_channels()]
+        return [channel['id'] for channel in self.get_channels(guild_id)]
 
     def get_available_guild_id(self) -> str:
         """
@@ -143,12 +157,9 @@ class Server:
         if self.CATEGORY_NAME:
             channels = [
                 channel for channel in channels if
-                channel['parent_id'] == self.get_category_id(
-                    guild_id=channel['guild_id'],
-                    category_name=self.CATEGORY_NAME
-                )
+                channel['parent_id'] == self.CATEGORIES_IDS[channel['guild_id']]
             ]
-        channels = [channel for channel in channels if len(self.get_messages(channel_id=channel['id'])) < 100]
+        channels = [channel for channel in channels if self.CHANNELS_MESSAGES_COUNT[channel['id']] < 100]
 
         # If there is no channel that hasn't got 100 messages in it, create a new one
         if not channels:
@@ -248,6 +259,7 @@ class Server:
             endpoint=f'/guilds/{guild_id}/channels',
             json_data=json_data
         ).json()  # Create a text channel with the name in the guild
+        self.CHANNELS_MESSAGES_COUNT[r['id']] = 0  # Initialize the messages count of the channel
         return r
 
     def get_messages(self, channel_id: str) -> dict:
@@ -291,6 +303,7 @@ class Server:
             files={'files': file}
         ).json()  # Upload the file
         file.close()  # Close the file
+        self.CHANNELS_MESSAGES_COUNT[channel_id] += 1  # Increment the messages count of the channel
         return {'file_key': '{}:{}'.format(channel_id, response['id'])}  # Return the file key
 
     def _file_edit(self, file_key: str, path: str) -> dict[str, str]:
@@ -324,6 +337,7 @@ class Server:
             method='DELETE',
             endpoint=f'/channels/{channel_id}/messages/{message_id}',
         )  # Delete the files message from the channel
+        self.CHANNELS_MESSAGES_COUNT[channel_id] -= 1  # Decrement the messages count of the channel
         return {'message': "DELETED"}, 200  # Return a response with a status code of 200
 
     def get_boosts_level(self, guild_id: str) -> int:
@@ -440,3 +454,6 @@ class CustomServer(Server):
             file_key = self._file_upload(path=path)
             os.remove(path)
             return file_key
+
+
+CUSTOM_SERVERS: dict[str, CustomServer] = {}
