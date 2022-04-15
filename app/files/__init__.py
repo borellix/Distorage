@@ -17,7 +17,10 @@ def upload() -> dict[str, str]:
         return abort(400, {"message": "Bad Request"})
 
     server_key = request.headers.get('Server-Key')
-    path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file_.filename.split('.')[-1])
+    if '.' in file_.filename:
+        path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file_.filename.split('.')[-1])
+    else:
+        path = os.path.join(os.getcwd(), 'tmp', str(uuid4()))
     file_.save(path)
 
     # if this is a custom server
@@ -71,7 +74,10 @@ def edit(file_key) -> dict[str, str]:
         return abort(400, {"message": "Bad Request"})
     server_key = request.headers.get('Server-Key')
 
-    path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file_.filename.split('.')[-1])
+    if '.' in file_.filename:
+        path = os.path.join(os.getcwd(), 'tmp', str(uuid4()) + '.' + file_.filename.split('.')[-1])
+    else:
+        path = os.path.join(os.getcwd(), 'tmp', str(uuid4()))
     file_.save(path)
 
     if server_key:  # Custom server
