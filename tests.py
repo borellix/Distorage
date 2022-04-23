@@ -10,7 +10,7 @@ values = {
 
 
 class TestCommon(unittest.TestCase):
-    url = "http://localhost:5000/files/"
+    url = "http://localhost:5000/api/v2/file/"
 
     def test_1_common_upload(self):
         file = open("tests_upload_files/test.py", "rb")
@@ -57,7 +57,7 @@ class TestCommon(unittest.TestCase):
 
 
 class TestCustom(unittest.TestCase):
-    url = "http://localhost:5000/files/"
+    url = "http://localhost:5000/api/v2/file/"
     authorization = os.getenv('TEST_AUTHORIZATION_CUSTOM')
     guilds_ids = os.getenv('TEST_GUILDS_IDS_CUSTOM')
 

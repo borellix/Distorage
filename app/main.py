@@ -2,11 +2,11 @@ from flask import Flask, url_for, render_template, redirect
 import os
 
 from .errors import errors
-from .files import files
+from app.api import api
 
 app = Flask(__name__)
 app.register_blueprint(errors)
-app.register_blueprint(files, url_prefix='/files')
+app.register_blueprint(api, url_prefix='/api')
 
 
 @app.route('/')

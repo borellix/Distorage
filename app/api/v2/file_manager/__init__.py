@@ -2,15 +2,15 @@ from flask import Blueprint, abort, request
 import os
 from uuid import uuid4
 
-from ..servers import *
+from app.api.v2.servers import *
 
-files = Blueprint('files', __name__)
+file_manager = Blueprint('file_manager', __name__)
 
 
 def upload() -> dict[str, str]:
     """
-    Upload a files
-    :return: The uploaded files or an error message
+    Upload a file
+    :return: The uploaded file or an error message
     """
     file_ = request.files.get('file')
     if not file_:
@@ -102,8 +102,8 @@ def delete(file_key):
 
 
 # Init server
-@files.route('/init-server', methods=['POST'], strict_slashes=False)
-@files.route('/init_server', methods=['POST'], strict_slashes=False)
+@file_manager.route('/init-server', methods=['POST'], strict_slashes=False)
+@file_manager.route('/init_server', methods=['POST'], strict_slashes=False)
 def init_server() -> dict[str, str]:
     authorization = request.headers.get('Authorization')
     if not authorization:
@@ -119,10 +119,11 @@ def init_server() -> dict[str, str]:
     return {'Server-Key': server_key}
 
 
-# Handle all methods for files in /files route
-@files.route('', methods=['POST'], strict_slashes=False)
-@files.route('/<string:file_key>', methods=['GET', 'PATCH', 'DELETE'], strict_slashes=False)
+# Handle all methods for files in /file route
+@file_manager.route('', methods=['POST'], strict_slashes=False)
+@file_manager.route('/<string:file_key>', methods=['GET', 'PATCH', 'DELETE'], strict_slashes=False)
 def file(file_key=None):
+    print(request.method)
     if request.method == 'POST':
         return upload()
     elif request.method == 'GET':
