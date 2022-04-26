@@ -1,4 +1,7 @@
 const dropZone = document.getElementById('drop-zone');
+const dropZoneBorderInner = document.getElementById('drop-zone-border--inner');
+const dropZoneBorderOuter = document.getElementById('drop-zone-border--outer');
+const dropZoneBorder = [dropZone, dropZoneBorderInner, dropZoneBorderOuter];
 const fileInput = document.getElementById('drop-zone__file-input');
 const pFileName = document.getElementById('drop-zone__file-name');
 let animation = false;
@@ -58,7 +61,7 @@ function dropHandler(e) {
 function dragOverHandler(e) {
     if (!animation) {
         animation = true;
-        playBorderRadiusAnimation(dropZone)
+        playBorderRadiusAnimation(dropZone);
     }
     console.log('File(s) in drop zone');
     // Prevent default behavior (Prevent file from being opened)
@@ -75,26 +78,30 @@ function dragLeaveHandler(e) {
     e.preventDefault();
 }
 
-function playBorderRadiusAnimation(element) {
-    element.animate(
-        [
-            {borderRadius: "120px"},
-            {borderRadius: "30px"}
-        ], {
-            duration: 300,
-            iterations: 1,
-            direction: "alternate",
-            easing: "ease-in-out",
-            fill: "forwards"
-        }
-    )
+function playBorderRadiusAnimation() {
+    dropZoneBorder.forEach(function (element) {
+        console.log(element.style);
+        element.animate(
+            [
+                {borderRadius: getComputedStyle(element).borderRadius},
+                {borderRadius: parseInt(getComputedStyle(element).borderRadius) - 90 + 'px'}
+            ], {
+                duration: 300,
+                iterations: 1,
+                direction: "alternate",
+                easing: "ease-in-out",
+                fill: "forwards"
+            }
+        )
+    });
 }
 
-function playReverseBorderRadiusAnimation(element) {
+function playReverseBorderRadiusAnimation() {
+    dropZoneBorder.forEach(function (element) {
     element.animate(
         [
-            {borderRadius: "30px"},
-            {borderRadius: "120px"}
+            {borderRadius: getComputedStyle(element).borderRadius},
+            {borderRadius: (parseInt(getComputedStyle(element).borderRadius.replace('px', '')) + 90).toString() + 'px'}
         ], {
             duration: 300,
             iterations: 1,
@@ -103,6 +110,7 @@ function playReverseBorderRadiusAnimation(element) {
             fill: "forwards"
         }
     )
+});
 }
 
 
@@ -139,41 +147,7 @@ function changeFontSize() {
     } else if (fontSize > 30) {
         fontSize = 30;
     }
-    pFileName.style.fontSize = fontSize+ "px";
-}
-
-// skip line (add \n) after the end of the word that contains the 50th character of the given string
-function skipLine(string) {
-    let stringLength = string.length;
-    let baseStringArray = string.split("");
-    let stringArray = baseStringArray;
-    let line = "";
-    let character = "";
-    for (let [char_i, i] = [0, 0]; char_i < stringLength; [char_i++, i++]) {
-        character = baseStringArray[char_i];
-        if (i % 30 === 0 && char_i !== 0) {
-            console.log("After 30 characters: " + character);
-            let j = char_i
-            for (j; j < stringLength; j++) {
-                console.log("j: " + j);
-                if (baseStringArray[j] === " ") {
-                    line += "<br>";
-                    console.log("Found space");
-                    console.log("line: " + line);
-                    i = 0;
-                    break;
-                } else {
-                    line += baseStringArray[j];
-                }
-            }
-            console.log("j after if: " + j);
-            char_i = j;
-        } else {
-            line += character;
-
-        }
-    }
-    return line;
+    pFileName.style.fontSize = fontSize + "px";
 }
 
 

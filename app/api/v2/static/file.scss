@@ -1,4 +1,4 @@
-@option style: compact;
+@option compress: yes;
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500&display=swap');
 
 $dark: #2C2F33;
@@ -12,18 +12,33 @@ html, body {
     font-family: 'Fredoka', sans-serif;
 }
 
-#drop-zone {
-    z-index: 1;
-    position: absolute;
-    left: 20%;
-    top: 50%;
-    -webkit-transform: translate(-30%, -50%);
-    transform: translate(-30%, -50%);
-    width: 45%;
+#drop-zone-border {
+    &--outer {
+        z-index: 1;
+        position: absolute;
+        left: 20%;
+        top: 50%;
+        -webkit-transform: translate(-30%, -50%);
+        transform: translate(-30%, -50%);
+        width: 45%;
 
-    height: 80%;
+        height: 80%;
+        border: 12px solid $dark;
+        border-radius: 120px;
+    }
+
+    &--inner {
+        z-index: 1;
+        height: calc(100% - 24px);
+        border: 12px solid $dark;
+        border-radius: 100px;
+    }
+}
+
+#drop-zone {
+    height: calc(100% - 24px);
     border: 12px solid $blue;
-    border-radius: 120px;
+    border-radius: 110px;
 
     &__title {
         margin: 0 auto;
@@ -49,12 +64,10 @@ html, body {
 
         word-wrap: break-word;
     }
+
     &__text {
         text-decoration: underline;
         font-size: 2rem;
-        &:before {
-            content: 'Click here or drop a file';
-        }
     }
 
     &__file-input {
@@ -69,7 +82,7 @@ html, body {
     padding: 7px 20px;
 }
 
-#svg_frame {
+#svg-frame {
     z-index: 0;
     border: none;
 

@@ -11,7 +11,7 @@
 }
 
 @media only screen and (max-width: 1200px) {
-    #drop-zone {
+    #drop-zone-border--outer {
         width: 80%;
         height: 45%;
         //Center div
@@ -21,16 +21,14 @@
 
         top: 5%;
         transform: none;
+    }
+    #drop-zone {
 
         &__title {
             font-size: 3rem;
         }
-        &__text:before {
-            content: 'Click here to upload your file';
-        }
 
-
-        #svg_frame {
+        #svg-frame {
             bottom: -1900px;
             right: -1200px;
         }

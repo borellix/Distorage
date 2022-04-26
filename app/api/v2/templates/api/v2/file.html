@@ -8,14 +8,18 @@
     {% endassets %}
 </head>
 <body>
+<div id="drop-zone-border--outer">
     <div id="drop-zone">
-        <p id="drop-zone__title">Upload a file on Discord !</p>
-        <p id="drop-zone__text"></p>
-        <p id="drop-zone__file-name"></p>
-        <input type="file" id="drop-zone__file-input" name="file"/>
+        <div id="drop-zone-border--inner">
+            <p id="drop-zone__title">Upload a file on Discord !</p>
+            <p id="drop-zone__text">Click here or drop a file</p>
+            <p id="drop-zone__file-name"></p>
+            <input type="file" id="drop-zone__file-input" name="file"/>
+        </div>
     </div>
-<br>
-<iframe id="svg_frame" src="{{ url_for('api.v2.static', filename="wave.svg") }}"></iframe>
+</div>
+<iframe id="svg-frame" src="{{ url_for('api.v2.static', filename="wave.svg") }}"></iframe>
+
 
 <script src="{{ url_for('api.v2.static', filename="file.js") }}"></script>
 </body>
