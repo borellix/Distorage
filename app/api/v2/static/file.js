@@ -98,19 +98,24 @@ function playBorderRadiusAnimation() {
 
 function playReverseBorderRadiusAnimation() {
     dropZoneBorder.forEach(function (element) {
-    element.animate(
-        [
-            {borderRadius: getComputedStyle(element).borderRadius},
-            {borderRadius: (parseInt(getComputedStyle(element).borderRadius.replace('px', '')) + 90).toString() + 'px'}
-        ], {
-            duration: 300,
-            iterations: 1,
-            direction: "alternate",
-            easing: "ease-in-out",
-            fill: "forwards"
-        }
-    )
-});
+        element.animate(
+            [
+                {borderRadius: getComputedStyle(element).borderRadius},
+                {
+                    borderRadius: (
+                        parseInt(
+                            getComputedStyle(element).borderRadius.replace('px', '')
+                        ) + 90).toString() + 'px'
+                }
+            ], {
+                duration: 300,
+                iterations: 1,
+                direction: "alternate",
+                easing: "ease-in-out",
+                fill: "forwards"
+            }
+        )
+    });
 }
 
 
