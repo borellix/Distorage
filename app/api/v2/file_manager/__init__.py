@@ -1,10 +1,11 @@
-from flask import Blueprint, abort, request
+from flask import Blueprint, abort, request, render_template
 import os
 from uuid import uuid4
 
 from app.api.v2.servers import *
 
 file_manager = Blueprint('file_manager', __name__)
+
 
 
 def upload() -> dict[str, str]:
@@ -132,3 +133,9 @@ def file(file_key=None):
         return edit(file_key=file_key)
     elif request.method == 'DELETE':
         return delete(file_key=file_key)
+
+
+# The intefrace for the file manager
+@file_manager.route('/', methods=['GET'], strict_slashes=False)
+def index():
+    return render_template('api/v2/file.html')

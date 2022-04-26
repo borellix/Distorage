@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Distorage</title>
+    {% assets "scss_all" %}
+        <link rel=stylesheet type=text/css href="{{ url_for("api.v2.static", filename="file.css") }}">
+    {% endassets %}
+</head>
+<body>
+    <div id="drop-zone">
+        <p id="drop-zone__title">Upload a file on Discord !</p>
+        <p id="drop-zone__text"></p>
+        <p id="drop-zone__file-name"></p>
+        <input type="file" id="drop-zone__file-input" name="file"/>
+    </div>
+<br>
+<iframe id="svg_frame" src="{{ url_for('api.v2.static', filename="wave.svg") }}"></iframe>
+
+<script src="{{ url_for('api.v2.static', filename="file.js") }}"></script>
+</body>
+</html>

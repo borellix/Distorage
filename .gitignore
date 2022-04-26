@@ -11,6 +11,7 @@ tests_upload_files/
 .test.env
 
 **/__pycache__/
+**/.webassets-cache/
 
 Procfile.windows
 launch.py

@@ -1,0 +1,50 @@
+@media only screen and (max-width: 1500px) {
+    #drop-zone__title {
+        font-size: 2.5rem;
+    }
+}
+
+@media only screen and (max-width: 1275px) {
+    #drop-zone__title {
+        font-size: 2rem;
+    }
+}
+
+@media only screen and (max-width: 1200px) {
+    #drop-zone {
+        width: 80%;
+        height: 45%;
+        //Center div
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+
+        top: 5%;
+        transform: none;
+
+        &__title {
+            font-size: 3rem;
+        }
+        &__text:before {
+            content: 'Click here to upload your file';
+        }
+
+
+        #svg_frame {
+            bottom: -1900px;
+            right: -1200px;
+        }
+    }
+}
+
+@media only screen and (max-width: 850px) {
+    #drop-zone__title {
+        font-size: 2.5rem;
+    }
+}
+
+@media only screen and (max-width: 750px) {
+    #drop-zone__title {
+        font-size: 2rem;
+    }
+}
