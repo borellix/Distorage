@@ -1,4 +1,4 @@
-@option compress: yes;
+@option style: compact;
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500&display=swap');
 
 $dark: #2C2F33;
@@ -10,6 +10,13 @@ html, body {
     width: 100%;
     height: 100%;
     font-family: 'Fredoka', sans-serif;
+}
+
+main {
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    grid-template-rows: repeat(12, 1fr);
 }
 
 #drop-zone-border {
@@ -28,6 +35,9 @@ html, body {
     }
 
     &--inner {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
         z-index: 1;
         height: calc(100% - 24px);
         border: 12px solid $dark;
@@ -51,16 +61,12 @@ html, body {
     }
 
     &__file-name, &__text {
-        margin: 0 auto;
         width: 100%;
         text-align: center;
         color: $blue;
         font-weight: 800;
         letter-spacing: 1.5px;
-        position: absolute;
-        top: 50%;
-        -webkit-transform: translateY(-50%);
-        transform: translateY(-50%);
+        margin: 0;
 
         word-wrap: break-word;
     }
@@ -76,10 +82,52 @@ html, body {
     }
 }
 
+// A button with logo on left side and text on right side and hover effect that removes the text and slides the logo to the right
+#upload-button {
+    display: inline-block;
+    position: relative;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: $dark;
+    background: $blue;
+    transition: all 0.2s ease-in-out;
 
-.upload-btn {
-    margin-left: 300px;
-    padding: 7px 20px;
+    &:hover {
+        background: $dark;
+        color: $blue;
+    }
+
+    &:before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: -1.5rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        background: $blue;
+        border-radius: 50%;
+        transition: all 0.2s ease-in-out;
+    }
+
+    &:after {
+        content: attr(data-text);
+        position: absolute;
+        top: 50%;
+        left: 1.5rem;
+        width: calc(100% - 3rem);
+        height: 1.5rem;
+        background: $dark;
+        border-radius: 50%;
+        transition: all 0.2s ease-in-out;
+    }
 }
 
 #svg-frame {

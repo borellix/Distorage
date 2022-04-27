@@ -10,6 +10,20 @@
     }
 }
 
+@media only screen and (min-width: 1200px) {
+    #drop-zone-border--outer {
+        grid-column: 2 / 11;
+        grid-row: 2 / 12;
+        position: unset;
+        -webkit-transform: none;
+        transform: none ;
+        width: auto;
+        height: auto;
+
+    }
+}
+
+
 @media only screen and (max-width: 1200px) {
     #drop-zone-border--outer {
         width: 80%;
