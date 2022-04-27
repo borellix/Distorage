@@ -3,7 +3,8 @@ const dropZoneBorderInner = document.getElementById('drop-zone-border--inner');
 const dropZoneBorderOuter = document.getElementById('drop-zone-border--outer');
 const dropZoneBorder = [dropZone, dropZoneBorderInner, dropZoneBorderOuter];
 const fileInput = document.getElementById('drop-zone__file-input');
-const pFileName = document.getElementById('drop-zone__file-name');
+const dropZoneFileName = document.getElementById('drop-zone__file-name');
+const dropZoneText = document.getElementById('drop-zone__text');
 let animation = false;
 
 function clickDropZoneHandler() {
@@ -12,8 +13,9 @@ function clickDropZoneHandler() {
 
 function changeFileHandler() {
     const file = fileInput.files[0];
-    pFileName.innerHTML = file.name;
-    changeFontSize();
+    dropZoneFileName.innerHTML = file.name;
+    dropZoneText.style.display = 'none';
+    adaptText();
 }
 
 function dropHandler(e) {
@@ -51,8 +53,9 @@ function dropHandler(e) {
                 }
             }
             // Change the content of the p file-name to the name of the file
-            pFileName.innerHTML = file.name;
-            changeFontSize();
+            dropZoneFileName.innerHTML = file.name;
+            dropZoneText.style.display = 'none';
+            adaptText();
         }
     )
 
@@ -121,11 +124,11 @@ function playReverseBorderRadiusAnimation() {
 
 // Change the font size of the p file-name to fit the width of the drop zone and of the length of the file name
 // skip line in the filename if there is more than 50 characters
-function changeFontSize() {
+function adaptText() {
     console.log("Change font size");
     // skip line after the end of the word that contains the 50th character of the filename
 
-    let fileName = pFileName.innerHTML;
+    let fileName = dropZoneFileName.innerHTML;
     let fileNameLength = fileName.length;
     if (fileNameLength > 30) {
         console.log("More than 30 characters");
@@ -140,9 +143,9 @@ function changeFontSize() {
         let lastWord = fileName.substring(fileName.lastIndexOf(' '), fileName.length);
         console.log(firstWord);
         console.log(lastWord);
-        pFileName.innerHTML = firstWord + '...' + lastWord;
+        dropZoneFileName.innerHTML = firstWord + '...' + lastWord;
     }
-    fileName = pFileName.innerHTML;
+    fileName = dropZoneFileName.innerHTML;
     fileNameLength = fileName.length;
     let dropZoneWidth = dropZone.offsetWidth;
     console.log(dropZoneWidth);
@@ -152,11 +155,11 @@ function changeFontSize() {
     } else if (fontSize > 30) {
         fontSize = 30;
     }
-    pFileName.style.fontSize = fontSize + "px";
+    dropZoneFileName.style.fontSize = fontSize + "px";
 }
 
 
-changeFontSize();
+adaptText();
 // Listeners
 dropZone.addEventListener('click', clickDropZoneHandler, false);
 dropZone.addEventListener('drop', (e) => {
@@ -168,4 +171,4 @@ dropZone.addEventListener('dragleave', dragLeaveHandler, false);
 
 fileInput.addEventListener('change', changeFileHandler, false);
 
-window.addEventListener('resize', changeFontSize, false);
+window.addEventListener('resize', adaptText, false);
