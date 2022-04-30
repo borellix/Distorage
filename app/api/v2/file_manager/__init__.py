@@ -138,4 +138,4 @@ def file(file_key=None):
 # The intefrace for the file manager
 @file_manager.route('/', methods=['GET'], strict_slashes=False)
 def index():
-    return render_template('api/v2/file.html')
+    return render_template('api/v2/../../../templates/home.html')

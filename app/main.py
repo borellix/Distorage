@@ -3,14 +3,17 @@ import os
 
 from .errors import errors
 from . import api
+from flask_assets import Environment, Bundle
 
 app = Flask(__name__)
 app.register_blueprint(errors)
 app.register_blueprint(api.api, url_prefix='/api')
-app.config['LOAD_PATHS'] = [
-    'D:/Code/Distorage/api/app/api/v2/static'
-]
-api.v2_assets.init_app(app)
+
+assets = Environment(app)
+
+file = Bundle('css/home.scss', filters='pyscss', output='css/home.css', depends='*.scss')
+assets.register('scss_all', file)
+assets.init_app(app)
 
 
 @app.route('/')

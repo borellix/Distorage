@@ -2,9 +2,51 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Distorage</title>
+    {% assets "scss_all" %}
+        <link rel=stylesheet type=text/css href="{{ url_for("static", filename="css/home.css") }}">
+    {% endassets %}
+    <script src="https://kit.fontawesome.com/b52639593b.js" crossorigin="anonymous"></script>
+
 </head>
 <body>
-    Soon...
+<main>
+    <div id="drop-zone-border--outer">
+        <div id="drop-zone">
+            <div id="drop-zone-border--inner">
+                <p id="drop-zone__title">Upload a file on Discord !</p>
+                <p id="drop-zone__text">Click here or drop a file</p>
+                <p id="drop-zone__file-name"></p>
+                <input type="file" id="drop-zone__file-input" name="file"/>
+            </div>
+        </div>
+    </div>
+    <div id="actions">
+        <div id="actions__action--1" class="actions">
+            <b>Upload</b>
+            <img src="{{ url_for("static", filename="img/upload.png") }}" alt="Upload">
+        </div>
+        <div id="actions__action--2" class="actions">
+            <b>Download</b>
+            <img src="{{ url_for("static", filename="img/download.png") }}" alt="Upload">
+
+        </div>
+        <div id="actions__action--3" class="actions">
+            <b>Edit</b>
+            <img src="{{ url_for("static", filename="img/edit.png") }}" alt="Upload">
+
+        </div>
+        <div id="actions__action--4" class="actions">
+            <b>Delete</b>
+            <img src="{{ url_for("static", filename="img/delete.png") }}" alt="Upload">
+
+        </div>
+        <label for="file-key" style="display: none"></label>
+        <input type="text" id="file-key" placeholder="File Key">
+    </div>
+</main>
+<iframe id="svg-frame" src="{{ url_for('static', filename="img/wave.svg") }}"></iframe>
+
+<script src="{{ url_for('static', filename="js/home.js") }}"></script>
 </body>
 </html>
