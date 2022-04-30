@@ -22,21 +22,21 @@
         </div>
     </div>
     <div id="actions">
-        <div id="actions__action--1" class="actions">
+        <div id="actions__action--1" class="actions" onclick="Api.upload()">
             <b>Upload</b>
             <img src="{{ url_for("static", filename="img/upload.png") }}" alt="Upload">
         </div>
-        <div id="actions__action--2" class="actions">
+        <div id="actions__action--2" class="actions" onclick="Api.download()">
             <b>Download</b>
             <img src="{{ url_for("static", filename="img/download.png") }}" alt="Upload">
 
         </div>
-        <div id="actions__action--3" class="actions">
+        <div id="actions__action--3" class="actions" onclick="Api.patch()">
             <b>Edit</b>
             <img src="{{ url_for("static", filename="img/edit.png") }}" alt="Upload">
 
         </div>
-        <div id="actions__action--4" class="actions">
+        <div id="actions__action--4" class="actions" onclick="Api.delete()">
             <b>Delete</b>
             <img src="{{ url_for("static", filename="img/delete.png") }}" alt="Upload">
 

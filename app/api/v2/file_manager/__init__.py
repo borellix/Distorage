@@ -134,8 +134,3 @@ def file(file_key=None):
     elif request.method == 'DELETE':
         return delete(file_key=file_key)
 
-
-# The intefrace for the file manager
-@file_manager.route('/', methods=['GET'], strict_slashes=False)
-def index():
-    return render_template('api/v2/../../../templates/home.html')
