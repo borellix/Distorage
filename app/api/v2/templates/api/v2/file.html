@@ -27,7 +27,6 @@
             {#            <object data="{{ url_for("api.v2.static", filename="img/upload.svg") }}"></object>#}
             <img src="{{ url_for("api.v2.static", filename="img/upload.png") }}" alt="Upload">
         </div>
-
         <div id="actions__action--2" class="actions">
             <b>Download</b>
             <img src="{{ url_for("api.v2.static", filename="img/download.png") }}" alt="Upload">
@@ -43,6 +42,8 @@
             <img src="{{ url_for("api.v2.static", filename="img/delete.png") }}" alt="Upload">
 
         </div>
+        <label for="file-key" style="display: none"></label>
+        <input type="text" id="file-key" placeholder="File Key">
     </div>
 </main>
 <iframe id="svg-frame" src="{{ url_for('api.v2.static', filename="img/wave.svg") }}"></iframe>

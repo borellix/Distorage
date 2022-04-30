@@ -22,72 +22,6 @@ main {
     grid-template-rows: repeat(12, 1fr);
 }
 
-#drop-zone-border {
-    &--outer {
-        z-index: 1;
-        position: absolute;
-        left: 20%;
-        top: 50%;
-        -webkit-transform: translate(-30%, -50%);
-        transform: translate(-30%, -50%);
-        width: 45%;
-
-        height: 80%;
-        border: 12px solid $dark;
-        border-radius: 120px;
-    }
-
-    &--inner {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        z-index: 1;
-        height: calc(100% - 24px);
-        border: 12px solid $dark;
-        border-radius: 100px;
-    }
-}
-
-#drop-zone {
-    height: calc(100% - 24px);
-    border: 12px solid $blue;
-    border-radius: 110px;
-
-    &__title {
-        margin: 0 auto;
-        width: 100%;
-        text-align: center;
-        font-size: 3rem;
-        color: $blue;
-        font-weight: 800;
-        letter-spacing: 1.5px;
-    }
-
-    &__file-name, &__text {
-        width: 100%;
-        text-align: center;
-        color: $blue;
-        font-weight: 800;
-        letter-spacing: 1.5px;
-        margin: 0;
-
-        word-wrap: break-word;
-    }
-
-    &__text {
-        text-decoration: underline;
-        font-size: 2rem;
-    }
-
-    &__file-input {
-        display: none;
-        width: 600px;
-    }
-}
-
-#actions {
-}
-
 #svg-frame {
     z-index: 0;
     border: none;
@@ -102,4 +36,12 @@ main {
     background-color: $dark;
 }
 
-@import "file_mq";
+@media only screen and (max-width: 1200px) {
+    #svg-frame {
+        bottom: -1900px;
+        right: -1200px;
+    }
+}
+//
+@import "drop-zone";
+@import "actions";
