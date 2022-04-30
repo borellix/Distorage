@@ -6,6 +6,8 @@
     {% assets "scss_all" %}
         <link rel=stylesheet type=text/css href="{{ url_for("api.v2.static", filename="file.css") }}">
     {% endassets %}
+    <script src="https://kit.fontawesome.com/b52639593b.js" crossorigin="anonymous"></script>
+
 </head>
 <body>
 <main>
@@ -20,10 +22,30 @@
         </div>
     </div>
     <div id="actions">
+        <div id="actions__action--1" class="actions">
+            <b>Upload</b>
+            {#            <object data="{{ url_for("api.v2.static", filename="img/upload.svg") }}"></object>#}
+            <img src="{{ url_for("api.v2.static", filename="img/upload.png") }}" alt="Upload">
+        </div>
 
+        <div id="actions__action--2" class="actions">
+            <b>Download</b>
+            <img src="{{ url_for("api.v2.static", filename="img/download.png") }}" alt="Upload">
+
+        </div>
+        <div id="actions__action--3" class="actions">
+            <b>Edit</b>
+            <img src="{{ url_for("api.v2.static", filename="img/edit.png") }}" alt="Upload">
+
+        </div>
+        <div id="actions__action--4" class="actions">
+            <b>Delete</b>
+            <img src="{{ url_for("api.v2.static", filename="img/delete.png") }}" alt="Upload">
+
+        </div>
     </div>
 </main>
-<iframe id="svg-frame" src="{{ url_for('api.v2.static', filename="wave.svg") }}"></iframe>
+<iframe id="svg-frame" src="{{ url_for('api.v2.static', filename="img/wave.svg") }}"></iframe>
 
 <script src="{{ url_for('api.v2.static', filename="file.js") }}"></script>
 </body>
