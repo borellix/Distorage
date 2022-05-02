@@ -4,7 +4,6 @@ venv/
 .idea/
 .vscode/
 
-tmp/
 tests_upload_files/
 
 .env
@@ -12,6 +11,7 @@ tests_upload_files/
 
 **/__pycache__/
 **/.webassets-cache/
+custom_servers.pickle
 
 Procfile.windows
 launch.py

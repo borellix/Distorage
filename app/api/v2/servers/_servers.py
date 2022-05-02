@@ -5,6 +5,10 @@ import requests
 import os
 import json
 from flask import abort
+from dotenv import load_dotenv
+import pickle
+
+load_dotenv()
 
 API_BASE_URL = os.environ.get('API_BASE_URL')
 AUTHORIZATION = os.environ.get('AUTHORIZATION')
@@ -397,10 +401,11 @@ class CustomServer(Server):
 
     def __init__(self,
                  authorization: str,
-                 guilds_ids: list[str] or str = None,
+                 guilds_ids: list[str] or str,
                  category_name: str = None,
                  prefix: str = ""
                  ):
+        # Save the server
         super().__init__(authorization=authorization, category_name=category_name, prefix=prefix, guilds_ids=guilds_ids)
 
     def get_guild_id_by_channel_id(self, channel_id: str) -> str:
@@ -456,4 +461,40 @@ class CustomServer(Server):
             return file_key
 
 
-CUSTOM_SERVERS: dict[str, CustomServer] = {}
+class CustomServersDict(dict):
+    """
+    A dict but dump and load the servers with pickle
+    """
+    path = "custom_servers.pickle"
+
+    def __init__(self, path: str):
+        super().__init__()
+        self.load()
+
+    def load(self):
+        if os.path.exists(self.path):
+            with open(self.path, 'rb') as f:
+                self.update(pickle.load(f))
+
+    def save(self):
+        with open(self.path, 'wb') as f:
+            pickle.dump(self, f)
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self.save()
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self.save()
+
+    def __getitem__(self, item):
+        # load the server if it doesn't exist
+        if item not in self:
+            self.load()
+        print("Get Item", self)
+
+        return super().__getitem__(item)
+
+
+CUSTOM_SERVERS: CustomServersDict[str, CustomServer] = CustomServersDict('custom_servers.pickle')

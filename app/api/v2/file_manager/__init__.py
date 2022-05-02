@@ -1,11 +1,10 @@
-from flask import Blueprint, abort, request, render_template
+from flask import Blueprint, abort, request
 import os
 from uuid import uuid4
 
 from app.api.v2.servers import *
 
 file_manager = Blueprint('file_manager', __name__)
-
 
 
 def upload() -> dict[str, str]:
@@ -124,7 +123,7 @@ def init_server() -> dict[str, str]:
 @file_manager.route('', methods=['POST'], strict_slashes=False)
 @file_manager.route('/<string:file_key>', methods=['GET', 'PATCH', 'DELETE'], strict_slashes=False)
 def file(file_key=None):
-    print(request.method)
+    print('Request: ', request.method)
     if request.method == 'POST':
         return upload()
     elif request.method == 'GET':
@@ -133,4 +132,3 @@ def file(file_key=None):
         return edit(file_key=file_key)
     elif request.method == 'DELETE':
         return delete(file_key=file_key)
-
