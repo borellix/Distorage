@@ -1,0 +1,103 @@
+$dark: #2C2F33;
+$blue: #3B5AC6;
+
+#drop-zone-border {
+    &--outer {
+        z-index: 1;
+        border: 12px solid $dark;
+        border-radius: 120px;
+    }
+
+    &--inner {
+        position: relative;
+        flex-direction: column;
+        justify-content: space-between;
+        z-index: 1;
+        height: calc(100% - 24px);
+        border: 12px solid $dark;
+        border-radius: 100px;
+    }
+}
+
+#drop-zone {
+    height: calc(100% - 24px);
+    border: 12px solid $blue;
+    border-radius: 110px;
+
+    &__title {
+        margin: 0 auto;
+        width: 100%;
+        text-align: center;
+        font-size: 3rem;
+        color: $blue;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+    }
+
+    &__file-name, &__text {
+        width: 100%;
+        text-align: center;
+        color: $blue;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        margin: 0;
+
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+
+        word-wrap: break-word;
+    }
+
+    &__text {
+        text-decoration: underline;
+        font-size: 2rem;
+    }
+
+    &__file-input {
+        display: none;
+        width: 600px;
+    }
+}
+
+@media only screen and (min-width: 1001px) {
+    #drop-zone-border--outer {
+        grid-column: 2 / 11;
+        grid-row: 2 / 12;
+    }
+}
+
+@media only screen and (max-width: 1000px) {
+    #drop-zone-border--outer {
+        grid-column: 2 / 20;
+        grid-row: 2 / 6;
+    }
+    #drop-zone__title {
+        font-size: 3rem;
+    }
+}
+
+
+@media only screen and (max-width: 1500px) {
+    #drop-zone__title {
+        font-size: 2.5rem;
+    }
+}
+
+@media only screen and (max-width: 1275px) {
+    #drop-zone__title {
+        font-size: 2rem;
+    }
+}
+
+@media only screen and (max-width: 850px) {
+    #drop-zone__title {
+        font-size: 2.5rem;
+    }
+}
+
+@media only screen and (max-width: 750px) {
+    #drop-zone__title {
+        font-size: 2rem;
+    }
+}
